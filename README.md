@@ -21,13 +21,37 @@ FastAPI + aiomysql 全异步电商系统 · 46 张表 · 21 个路由模块 · 2
 
 ```mermaid
 flowchart LR
-    B["商城前台 front/<br/>静态托管 8000"] -->|"跨域 /api/v1/shop/*"| A
-    M["后台管理 manager/<br/>由后端托管 8001"] -->|"/api/v1/*"| A
-    A["FastAPI 8001<br/>routers → services → schemas"] --> P[("aiomysql 连接池")]
-    P --> DB[("MySQL<br/>46 张表")]
+    B["商城前台 front (8000)"] -- "跨域调用 shop API" --> A
+    M["后台管理 manager (8001)"] -- "管理 API" --> A
+    A["FastAPI 8001 (routers → services → schemas)"] --> P[("aiomysql 连接池")]
+    P --> DB[("MySQL 46 张表")]
 ```
 
 > 上表各项的实现位置见右列「代码位置」，可直接对照源码核对。
+
+## 页面预览
+
+### 商城前台（8000）
+
+| 商城首页 | 商品详情页 |
+|---|---|
+| ![商城首页](./docs/screenshots/front-home.png) | ![商品详情页](./docs/screenshots/front-product-detail.png) |
+
+| 购物车 | 我的订单 |
+|---|---|
+| ![购物车](./docs/screenshots/front-cart.png) | ![我的订单](./docs/screenshots/front-orders.png) |
+
+### 管理后台（8001）
+
+| 登录页 | 数据仪表盘 |
+|---|---|
+| ![后台登录页](./docs/screenshots/manager-login.png) | ![数据仪表盘](./docs/screenshots/manager-dashboard.png) |
+
+| 商品管理 | 订单管理 |
+|---|---|
+| ![商品列表](./docs/screenshots/manager-goods-list.png) | ![订单列表](./docs/screenshots/manager-order-list.png) |
+
+> 以上均为本地运行 `seed demo` 演示数据后的真实运行截图，账号为演示账号，不含任何真实业务数据。
 
 > **开源声明 / Disclaimer**
 > 本项目是一个由 AI 辅助构建的商城系统学习/演示项目，代码按 [MIT License](./LICENSE) 发布。
