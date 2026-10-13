@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>评论管理 - 商城后台管理系统</title>
+  <link rel="stylesheet" href="../../css/common.css?v=20260904e">
+  <style>
+    .cmt-goods { display:flex; align-items:center; gap:8px; }
+    .cmt-goods-name { max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .cmt-content { max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .cmt-meta { font-size:11px; color:var(--text-muted); line-height:1.5; }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main-wrapper">
+      <header class="header" id="header"></header>
+      <main class="content">
+        <div class="page-header">
+          <div><h1 class="page-title">评论管理</h1><p class="page-desc">审核和回复用户商品评论</p></div>
+        </div>
+        <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);">
+          <div class="stat-card"><div class="stat-icon green">⭐</div><div class="stat-label">好评率</div><div class="stat-value" id="statGood">-</div></div>
+          <div class="stat-card"><div class="stat-icon red">👎</div><div class="stat-label">差评率</div><div class="stat-value" id="statBad">-</div></div>
+          <div class="stat-card"><div class="stat-icon blue">💬</div><div class="stat-label">总评论数</div><div class="stat-value" id="statTotal">-</div></div>
+          <div class="stat-card"><div class="stat-icon warning">⏳</div><div class="stat-label">待审核</div><div class="stat-value" id="statPending">-</div></div>
+        </div>
+        <div class="filter-bar">
+          <div class="filter-row">
+            <div class="filter-item"><label>关键词</label><input type="text" id="fKeyword" class="form-control" placeholder="评论内容/商品名"></div>
+            <div class="filter-item"><label>评分</label><select id="fScore" class="form-control"><option value="">全部</option><option value="5">5星</option><option value="4">4星</option><option value="3">3星</option><option value="2">2星</option><option value="1">1星</option></select></div>
+            <div class="filter-item"><label>审核状态</label><select id="fStatus" class="form-control"><option value="">全部</option><option value="0">待审核</option><option value="1">已通过</option><option value="2">已驳回</option></select></div>
+            <div class="filter-actions"><button class="btn btn-primary" onclick="resetSearch()">重置</button></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body no-padding">
+            <div class="table-wrapper">
+              <table class="table">
+                <thead><tr><th>商品</th><th>会员</th><th>评分</th><th>评论内容</th><th>评论图片</th><th>回复状态</th><th>审核状态</th><th>评论时间</th><th class="col-actions">操作</th></tr></thead>
+                <tbody id="commentTbody"></tbody>
+              </table>
+            </div>
+            <div class="pagination" id="commentPagination"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <div class="drawer-overlay" id="replyDrawer-overlay" onclick="AdminUI.closeDrawer('replyDrawer')"></div>
+  <div class="drawer" id="replyDrawer">
+    <div class="drawer-header"><h3 class="drawer-title">评论详情与回复</h3><button class="modal-close" data-close-drawer="replyDrawer">✕</button></div>
+    <div class="drawer-body">
+      <div class="detail-section"><div class="detail-section-title">评论信息</div>
+        <div class="detail-grid" id="cInfo"></div>
+        <div style="margin-top:12px;padding:12px;background:var(--content-bg);border-radius:var(--radius);font-size:13px;line-height:1.6;" id="cContent"></div>
+      </div>
+      <div class="detail-section"><div class="detail-section-title">商家回复</div>
+        <div class="form-group"><label class="form-label">回复内容</label><textarea class="form-control" rows="4" id="replyText" placeholder="请输入回复内容..."></textarea></div>
+      </div>
+    </div>
+    <div class="drawer-footer"><button class="btn btn-secondary" onclick="AdminUI.closeDrawer('replyDrawer')">取消</button><button class="btn btn-primary" onclick="saveReply()">提交回复</button></div>
+  </div>
+  <script src="../../js/common.js?v=20260904e"></script>
+  <script>
+    const API = AdminUI.API_BASE;
+    let PAGE = 1, SIZE = 10;
+    const F = { keyword: '', score: '', status: '' };
+    let REPLY_ID = null;
+
+    function esc(s) {
+      return String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+
+    function stars(score) {
+      const n = Number(score) || 0;
+      return '★★★★★☆☆☆☆☆'.slice(5 - n, 10 - n);
+    }
+
+    function statusBadge(st) {
+      if (st === 0) return '<span class="badge-tag warning">待审核</span>';
+      if (st === 2) return '<span class="badge-tag danger">已驳回</span>';
+      return '<span class="badge-tag success">已通过</span>';
+    }
+
+    async function loadComments(page) {
+      PAGE = page || PAGE;
+      const data = await AdminUI.get(API + '/goods/comments', {
+        page: PAGE, page_size: SIZE,
+        keyword: F.keyword || undefined,
+        score: F.score === '' ? undefined : F.score,
+        status: F.status === '' ? undefined : F.status
+      });
+      if (!data) return;
+      renderRows((data.list || []), data.total || 0);
+      await loadStats();
+    }
+
+    async function loadStats() {
+      try {
+        const all = await AdminUI.get(API + '/goods/comments', { page: 1, page_size: 1 });
+        document.getElementById('statGood').textContent = (all.goodRate === null || all.goodRate === undefined) ? '-' : all.goodRate + '%';
+        document.getElementById('statBad').textContent = (all.badRate === null || all.badRate === undefined) ? '-' : all.badRate + '%';
+        document.getElementById('statTotal').textContent = Number(all.total || 0).toLocaleString();
+        const pd = await AdminUI.get(API + '/goods/comments', { page: 1, page_size: 1, status: 0 });
+        document.getElementById('statPending').textContent = Number((pd && pd.total) || 0).toLocaleString();
+      } catch (e) { }
+    }
+
+    function renderRows(list, total) {
+      const canAudit = AdminUI.can('goods:audit');
+      const canReply = AdminUI.can('goods:edit');
+      const canDel = AdminUI.can('goods:delete');
+      const tbody = document.getElementById('commentTbody');
+      const rows = list.map(function (c) {
+        const st = c.status;
+        let acts = '';
+        if (st === 0 && canAudit) {
+          acts += '<a class="action-link" onclick="auditComment(' + c.id + ',true)">通过</a>';
+          acts += '<a class="action-link danger" onclick="auditComment(' + c.id + ',false)">驳回</a>';
+        }
+        if (canReply) acts += '<a class="action-link" onclick="openReply(' + c.id + ')">' + (c.reply ? '编辑回复' : '回复') + '</a>';
+        if (canDel) acts += '<a class="action-link danger" onclick="delComment(' + c.id + ')">删除</a>';
+        return '<tr>' +
+          '<td><div class="cmt-goods"><div class="thumb-img thumb-img-sm">📦</div><div><span class="cmt-goods-name">' + esc(c.goodsName || '-') + '</span>' +
+          '<div class="cmt-meta">商品ID:' + c.goodsId + '</div></div></div></td>' +
+          '<td><span>' + esc(c.memberName || ('会员#' + c.memberId)) + '</span></td>' +
+          '<td><span style="color:var(--warning);">' + stars(c.score) + '</span></td>' +
+          '<td class="cmt-content" title="' + esc(c.content) + '">' + esc(c.content || '-') + '</td>' +
+          '<td>' + (c.images ? '<span class="badge-tag default">📷 有图</span>' : '-') + '</td>' +
+          '<td>' + (c.reply ? '<span class="badge-tag success">已回复</span>' : '<span class="badge-tag default">未回复</span>') + '</td>' +
+          '<td>' + statusBadge(st) + '</td>' +
+          '<td style="font-size:12px;color:var(--text-secondary);">' + AdminUI.fmtTime(c.createdAt) + '</td>' +
+          '<td class="col-actions">' + acts + '</td>' +
+          '</tr>';
+      }).join('');
+      tbody.innerHTML = rows || '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:40px 0;">暂无数据</td></tr>';
+      const totalPages = Math.max(1, Math.ceil(total / SIZE));
+      AdminUI.renderPagination('commentPagination', PAGE, totalPages, total, SIZE);
+    }
+
+    function doSearch() {
+      F.keyword = document.getElementById('fKeyword').value.trim();
+      F.score = document.getElementById('fScore').value;
+      F.status = document.getElementById('fStatus').value;
+      loadComments(1);
+    }
+
+    function resetSearch() {
+      document.getElementById('fKeyword').value = '';
+      document.getElementById('fScore').value = '';
+      document.getElementById('fStatus').value = '';
+      F.keyword = ''; F.score = ''; F.status = '';
+      loadComments(1);
+    }
+
+    async function auditComment(id, pass) {
+      if (!window.confirm('确认' + (pass ? '审核通过' : '驳回') + '该评论？')) return;
+      try {
+        await AdminUI.put(API + '/goods/comments/' + id + '/audit', { pass: pass });
+        AdminUI.showToast('操作成功', 'success');
+        loadComments(PAGE);
+      } catch (e) { }
+    }
+
+    async function openReply(id) {
+      REPLY_ID = id;
+      document.getElementById('replyText').value = '';
+      const c = await AdminUI.findRow(API + '/goods/comments', id);
+      if (!c) { AdminUI.showToast('未找到该评价，请刷新后重试', 'warning'); return; }
+      document.getElementById('cInfo').innerHTML =
+        '<div class="detail-item"><span class="detail-label">商品：</span><span class="detail-value">' + esc(c.goodsName || '-') + '（ID:' + c.goodsId + '）</span></div>' +
+        '<div class="detail-item"><span class="detail-label">会员：</span><span class="detail-value">' + esc(c.memberName || ('会员#' + c.memberId)) + '</span></div>' +
+        '<div class="detail-item"><span class="detail-label">评分：</span><span class="detail-value" style="color:var(--warning);">' + stars(c.score) + '</span></div>' +
+        '<div class="detail-item"><span class="detail-label">时间：</span><span class="detail-value">' + AdminUI.fmtTime(c.createdAt) + '</span></div>';
+      document.getElementById('cContent').textContent = c.content || '';
+      document.getElementById('replyText').value = c.reply || '';
+      AdminUI.openDrawer('replyDrawer');
+    }
+
+    async function saveReply() {
+      if (!REPLY_ID) return;
+      const content = document.getElementById('replyText').value.trim();
+      if (!content) { AdminUI.showToast('请输入回复内容', 'warning'); return; }
+      try {
+        await AdminUI.post(API + '/goods/comments/' + REPLY_ID + '/reply', { content: content });
+        AdminUI.showToast('回复成功', 'success');
+        AdminUI.closeDrawer('replyDrawer');
+        REPLY_ID = null;
+        loadComments(PAGE);
+      } catch (e) { }
+    }
+
+    async function delComment(id) {
+      if (!window.confirm('确认删除该评论？')) return;
+      try {
+        await AdminUI.del(API + '/goods/comments/' + id);
+        AdminUI.showToast('删除成功', 'success');
+        loadComments(1);
+      } catch (e) { }
+    }
+
+    (async function () {
+      const ok = await AdminUI.initPage({ key: 'goods-comment', breadcrumb: ['商品管理', '评论管理'], need: ['goods:list'] });
+      if (!ok) return;
+      // 实时筛选绑定
+      document.getElementById('fKeyword').addEventListener('input', AdminUI.debounce(function () { doSearch(); }, 350));
+      document.getElementById('fScore').addEventListener('change', function () { doSearch(); });
+      document.getElementById('fStatus').addEventListener('change', function () { doSearch(); });
+      const pg = document.getElementById('commentPagination');
+      pg.addEventListener('click', function (e) {
+        const b = e.target.closest('button[data-page]');
+        if (!b || b.disabled) return;
+        loadComments(Number(b.getAttribute('data-page')));
+      });
+      pg.addEventListener('change', function (e) {
+        if (e.target.classList.contains('page-size-select')) {
+          SIZE = Number(e.target.value);
+          loadComments(1);
+        }
+      });
+      await loadComments(1);
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <link rel="icon" type="image/png" href="images/logo.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>仪表盘 - 商城后台管理系统</title>
+  <link rel="stylesheet" href="css/common.css?v=20260905a">
+  <style>
+    .bar-chart { display: flex; align-items: stretch; gap: 6px; height: 250px; padding: 30px 2px 0; border-bottom: 1px solid var(--border-color); }
+    .bar-chart-item { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .bar-chart-main { flex: 1; min-height: 0; display: flex; align-items: flex-end; justify-content: center; gap: 3px; }
+    .bar-wrap { height: 100%; display: flex; align-items: flex-end; }
+    .bar { position: relative; width: 11px; border-radius: 3px 3px 0 0; min-height: 2px; transition: var(--transition); }
+    .bar.amount { background: linear-gradient(180deg, var(--primary-light), var(--primary)); }
+    .bar.orders { width: 6px; background: linear-gradient(180deg, #a7f3d0, #34d399); }
+    .bar:hover { opacity: 0.85; }
+    .bar .bar-value { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-size: 11px; color: var(--text-secondary); white-space: nowrap; }
+    .bar-chart-label { flex: 0 0 auto; margin-top: 8px; text-align: center; font-size: 12px; color: var(--text-muted); }
+    .bar-chart.mini .bar.orders { display: none; }
+    .bar-chart.mini .bar .bar-value { display: none; }
+    .bar-chart.mini .bar-chart-label { opacity: 0; }
+    .bar-chart.mini .bar-chart-item:nth-child(5n) .bar-chart-label { opacity: 1; }
+    .bar-chart-empty { text-align: center; color: var(--text-muted); font-size: 13px; }
+    .progress-bar.info { background: var(--info); }
+    .progress-bar.secondary { background: #94a3b8; }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main-wrapper">
+      <header class="header" id="header"></header>
+      <main class="content">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">数据仪表盘</h1>
+            <p class="page-desc">实时掌握商城运营核心指标</p>
+          </div>
+          <div class="btn-group">
+            <select class="form-control" style="width:140px;" id="timeRange">
+              <option value="1">今日</option>
+              <option value="7" selected>近7日</option>
+              <option value="30">近30日</option>
+            </select>
+            <button class="btn btn-secondary" onclick="refreshAll()">🔄 刷新数据</button>
+          </div>
+        </div>
+
+        <div class="stats-grid" id="statCards"></div>
+
+        <div class="two-col">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title"><span class="title-dot"></span>销售趋势</h3>
+              <div class="btn-group" id="trendBtns">
+                <button class="btn btn-sm btn-primary" data-trend="7" onclick="switchTrend('7')">近7日</button>
+                <button class="btn btn-sm btn-secondary" data-trend="30" onclick="switchTrend('30')">近30日</button>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="bar-chart" id="trendChart"></div>
+              <div style="display:flex;gap:24px;margin-top:16px;font-size:12px;color:var(--text-secondary);">
+                <span style="display:flex;align-items:center;gap:6px;">
+                  <span style="width:12px;height:12px;background:var(--primary);border-radius:2px;"></span>
+                  销售额 (元)
+                </span>
+                <span style="display:flex;align-items:center;gap:6px;">
+                  <span style="width:12px;height:12px;background:#34d399;border-radius:2px;"></span>
+                  订单数 (笔)
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title"><span class="title-dot"></span>热门商品排行 TOP 10</h3>
+              <a class="action-link" href="pages/goods/goods-list.html">查看全部 →</a>
+            </div>
+            <div class="card-body">
+              <div class="rank-list" id="hotGoodsList"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="two-col">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title"><span class="title-dot"></span>订单状态分布</h3>
+            </div>
+            <div class="card-body" id="statusDistBox"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title"><span class="title-dot"></span>最近订单</h3>
+              <a class="action-link" href="pages/order/order-list.html">更多 →</a>
+            </div>
+            <div class="card-body no-padding">
+              <div class="table-wrapper">
+                <table class="table">
+                  <thead>
+                    <tr><th>订单号</th><th>会员</th><th>金额</th><th>状态</th></tr>
+                  </thead>
+                  <tbody id="recentOrderBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="js/common.js?v=20260905a"></script>
+  <script>
+    const API = AdminUI.API_BASE;
+
+    function esc(v) { return AdminUI.escHtml(v === null || v === undefined ? '' : String(v)); }
+    function money(v) { return '¥ ' + Number(v || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+    const RANGE_TEXT = { 1: '今日', 7: '近7日', 30: '近30日' };
+    const ORDER_STATUS_BADGE = { 1: 'warning', 2: 'primary', 3: 'info', 4: 'success', 5: 'secondary', 6: 'danger' };
+    function fmtAmount(a) { return a >= 10000 ? (a / 10000).toFixed(1) + '万' : String(Math.round(a)); }
+
+    const STAT_DEFS = [
+      { key: 'orders', label: '订单数', icon: '📦', cls: 'blue', range: true, text: v => Number(v).toLocaleString('zh-CN') },
+      { key: 'gmv', label: '成交金额 (GMV)', icon: '💰', cls: 'green', range: true, text: money },
+      { key: 'newMembers', label: '新增用户', icon: '👥', cls: 'purple', range: true, text: v => Number(v).toLocaleString('zh-CN') },
+      { key: 'pendingPayment', label: '待付款', icon: '🕐', cls: 'orange', caption: '下单未支付', text: v => Number(v).toLocaleString('zh-CN') },
+      { key: 'pendingShip', label: '待发货', icon: '🚚', cls: 'cyan', caption: '待商家发货', text: v => Number(v).toLocaleString('zh-CN') },
+      { key: 'lowStock', label: '库存预警', icon: '⚠️', cls: 'red', caption: '低于预警线', text: v => Number(v).toLocaleString('zh-CN') }
+    ];
+
+    let curRange = 7;
+
+    function renderStats(stats) {
+      document.getElementById('statCards').innerHTML = STAT_DEFS.map(function (def) {
+        const caption = def.range ? RANGE_TEXT[curRange] : (def.caption || '');
+        return '<div class="stat-card">' +
+          '<div class="stat-icon ' + def.cls + '">' + def.icon + '</div>' +
+          '<div class="stat-label">' + def.label + '</div>' +
+          '<div class="stat-value">' + def.text(stats[def.key]) + '</div>' +
+          '<div class="stat-trend">' + caption + '</div>' +
+          '</div>';
+      }).join('');
+    }
+
+    async function loadStats(days) {
+      curRange = days;
+      const data = await AdminUI.get(API + '/dashboard/overview', { days: days });
+      if (data && data.stats) renderStats(data.stats);
+    }
+
+    function renderStatusDist(list) {
+      const box = document.getElementById('statusDistBox');
+      box.innerHTML = list.map(function (s) {
+        return '<div style="margin-bottom:14px;">' +
+          '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">' +
+          '<span>' + esc(s.statusText) + '</span>' +
+          '<span style="font-weight:600;">' + s.count + ' 单 (' + s.percent + '%)</span>' +
+          '</div>' +
+          '<div class="progress"><div class="progress-bar ' + esc(s.color) + '" style="width:' + s.percent + '%"></div></div>' +
+          '</div>';
+      }).join('') || '<div class="bar-chart-empty">暂无订单数据</div>';
+    }
+
+    function renderRecentOrders(list) {
+      document.getElementById('recentOrderBody').innerHTML = (list || []).map(function (o) {
+        return '<tr>' +
+          '<td style="font-family:monospace;font-size:12px;">' + esc(o.orderNo) + '</td>' +
+          '<td>' + esc(o.memberName) + '</td>' +
+          '<td class="amount">' + money(o.payAmount) + '</td>' +
+          '<td><span class="badge-tag ' + (ORDER_STATUS_BADGE[o.orderStatus] || 'secondary') + '">' + esc(o.orderStatusText) + '</span></td>' +
+          '</tr>';
+      }).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:40px 0;">暂无订单</td></tr>';
+    }
+
+    function renderTrendChart(data) {
+      const chart = document.getElementById('trendChart');
+      const list = data || [];
+      if (!list.length) { chart.classList.remove('mini'); chart.innerHTML = '<div class="bar-chart-empty">暂无销售数据</div>'; return; }
+      chart.classList.toggle('mini', list.length > 10);
+      const maxA = Math.max.apply(null, list.map(d => d.amount)) || 1;
+      const maxO = Math.max.apply(null, list.map(d => d.orders)) || 1;
+      chart.innerHTML = list.map(function (d) {
+        const ha = Math.max((d.amount / maxA * 100), 0.5);
+        const ho = Math.max((d.orders / maxO * 100), 0.5);
+        return '<div class="bar-chart-item">' +
+          '<div class="bar-chart-main">' +
+          '<div class="bar-wrap"><div class="bar amount" style="height:' + ha.toFixed(1) + '%" title="销售额 ' + money(d.amount) + '"><span class="bar-value">' + fmtAmount(d.amount) + '</span></div></div>' +
+          '<div class="bar-wrap"><div class="bar orders" style="height:' + ho.toFixed(1) + '%" title="订单 ' + d.orders + ' 笔"></div></div>' +
+          '</div>' +
+          '<span class="bar-chart-label">' + esc(d.day) + '</span>' +
+          '</div>';
+      }).join('');
+    }
+
+    let trendDays = 7;
+
+    function setTrendBtns(days) {
+      document.querySelectorAll('#trendBtns [data-trend]').forEach(function (b) {
+        const on = b.getAttribute('data-trend') === String(days);
+        b.classList.toggle('btn-primary', on);
+        b.classList.toggle('btn-secondary', !on);
+      });
+    }
+
+    async function loadTrend(days) {
+      trendDays = days;
+      setTrendBtns(days);
+      const data = await AdminUI.get(API + '/dashboard/trend', { days: days });
+      renderTrendChart(data);
+    }
+
+    function switchTrend(days) {
+      if (String(days) === String(trendDays)) return;
+      loadTrend(days);
+    }
+
+    async function loadHotGoods() {
+      const data = await AdminUI.get(API + '/dashboard/hot-goods', { days: 30 });
+      const box = document.getElementById('hotGoodsList');
+      box.innerHTML = (data || []).map(function (g, i) {
+        return '<div class="rank-item">' +
+          '<span class="rank-num">' + (i + 1) + '</span>' +
+          '<div class="rank-info">' +
+          '<div class="rank-name">' + esc(g.goodsName) + '</div>' +
+          '<div class="rank-meta">销量 ' + Number(g.sales || 0).toLocaleString('zh-CN') + ' 件</div>' +
+          '</div>' +
+          '<span class="rank-value">' + money(g.amount) + '</span>' +
+          '</div>';
+      }).join('') || '<div class="bar-chart-empty" style="padding:60px 0;">暂无热门商品数据</div>';
+    }
+
+    async function refreshAll() {
+      const statsP = AdminUI.get(API + '/dashboard/overview', { days: curRange });
+      const distP = statsP;
+      const trendP = loadTrend(trendDays);
+      const hotP = loadHotGoods();
+      const ov = await statsP;
+      if (ov) {
+        renderStats(ov.stats);
+        renderStatusDist(ov.statusDist || []);
+        renderRecentOrders(ov.recentOrders || []);
+      }
+      await Promise.all([trendP, hotP]);
+      AdminUI.showToast('数据已刷新', 'success');
+    }
+
+    (async function () {
+      const ok = await AdminUI.initPage({ key: 'dashboard', breadcrumb: ['首页', '仪表盘'], need: ['dashboard:view'] });
+      if (!ok) return;
+      document.getElementById('timeRange').addEventListener('change', function () {
+        loadStats(parseInt(this.value, 10) || 1);
+      });
+      await refreshAll();
+    })();
+  </script>
+</body>
+</html>

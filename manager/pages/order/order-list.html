@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>订单列表 - 商城后台管理系统</title>
+  <link rel="stylesheet" href="../../css/common.css?v=20260904e">
+  <style>
+    #priceModal .modal { width: 480px; }
+    #priceModal .price-form .form-group { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    #priceModal .price-form .form-group:last-child { margin-bottom: 0; }
+    #priceModal .price-form .form-label { width: 96px; flex-shrink: 0; margin-bottom: 0; }
+    #priceModal .price-form .form-control { flex: 1; min-width: 0; }
+    #priceModal .price-form .form-control.price-amount { font-size: 16px; font-weight: 600; color: var(--text-primary); }
+    #priceModal .price-form .form-control.price-amount::placeholder { font-weight: 400; }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main-wrapper">
+      <header class="header" id="header"></header>
+      <main class="content">
+        <div class="page-header">
+          <div><h1 class="page-title">订单列表</h1><p class="page-desc">管理所有订单，支持多维筛选、批量发货和导出</p></div>
+          <div class="btn-group">
+            <button class="btn btn-secondary" id="btnExport" onclick="exportOrders()">📥 导出订单</button>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-body" style="padding:8px 20px;" id="statusTabs"></div>
+        </div>
+        <div class="filter-bar">
+          <div class="filter-row">
+            <div class="filter-item"><label>订单号</label><input type="text" id="fOrderNo" class="form-control" placeholder="请输入订单号"></div>
+            <div class="filter-item"><label>会员</label><input type="text" id="fMember" class="form-control" placeholder="昵称/手机"></div>
+            <div class="filter-item"><label>收货人</label><input type="text" id="fReceiver" class="form-control" placeholder="收货人/电话"></div>
+            <div class="filter-item"><label>支付状态</label><select id="fPayStatus" class="form-control"><option value="">全部</option><option value="0">未支付</option><option value="1">已支付</option></select></div>
+            <div class="filter-item"><label>订单状态</label><select id="fOrderStatus" class="form-control"><option value="">全部</option><option value="1">待付款</option><option value="2">待发货</option><option value="3">已发货</option><option value="4">已完成</option><option value="5">已取消</option><option value="6">售后中</option></select></div>
+            <div class="filter-item"><label>订单来源</label><select id="fSource" class="form-control"><option value="">全部</option><option value="h5">H5</option><option value="mp">小程序</option><option value="app">APP</option><option value="pc">PC</option></select></div>
+            <div class="filter-item"><label>下单时间</label><div style="display:flex;gap:4px;align-items:center;"><input type="date" id="fStart" class="form-control" style="width:130px;"><span style="color:var(--text-muted);">-</span><input type="date" id="fEnd" class="form-control" style="width:130px;"></div></div>
+            <div class="filter-actions"><button class="btn btn-primary" onclick="resetSearch()">重置</button></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body no-padding">
+            <div class="table-wrapper">
+              <table class="table" id="orderTable">
+                <thead><tr><th class="col-check"><input type="checkbox" class="check-all"></th><th style="min-width:180px;">订单信息</th><th>会员</th><th style="min-width:130px;">收货人/电话</th><th style="min-width:160px;">商品</th><th>实付金额</th><th>订单状态</th><th class="col-actions">操作</th></tr></thead>
+                <tbody id="orderBody"></tbody>
+              </table>
+            </div>
+            <div class="batch-bar" id="batchBar" style="display:none;">
+              <span>已选 <b id="batchCount">0</b> 个订单</span>
+              <div style="flex:1;"></div>
+              <button class="btn btn-sm btn-primary" id="btnBatchShip" onclick="openBatchShip()">📦 批量发货</button>
+            </div>
+            <div class="pagination" id="orderPagination"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="drawer-overlay" id="orderDetail-overlay" onclick="AdminUI.closeDrawer('orderDetail')"></div>
+  <div class="drawer" id="orderDetail">
+    <div class="drawer-header"><h3 class="drawer-title">订单详情</h3><button class="modal-close" data-close-drawer="orderDetail">✕</button></div>
+    <div class="drawer-body" id="detailBody"></div>
+    <div class="drawer-footer" id="detailFooter"></div>
+  </div>
+
+  <div class="modal-overlay" id="priceModal">
+    <div class="modal">
+      <div class="modal-header"><h3 class="modal-title">修改订单价格</h3><button class="modal-close" data-close-modal="priceModal">✕</button></div>
+      <div class="modal-body">
+        <div class="alert alert-warning">仅待付款状态的订单可以修改价格，修改后将记录操作日志。</div>
+        <div class="price-form">
+          <div class="form-group"><label class="form-label">订单号</label><input type="text" id="priceOrderNo" class="form-control" readonly></div>
+          <div class="form-group"><label class="form-label">原订单金额</label><input type="text" id="priceOriginal" class="form-control" readonly></div>
+          <div class="form-group"><label class="form-label">修改后金额 <span class="required">*</span></label><input type="number" id="priceAmount" class="form-control price-amount" placeholder="请输入新的订单金额"></div>
+          <div class="form-group"><label class="form-label">改价原因</label><input type="text" id="priceReason" class="form-control" maxlength="100" placeholder="请输入改价原因"></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-close-modal="priceModal">取消</button><button class="btn btn-primary" onclick="savePrice()">确认修改</button></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="shipModal">
+    <div class="modal">
+      <div class="modal-header"><h3 class="modal-title">订单发货</h3><button class="modal-close" data-close-modal="shipModal">✕</button></div>
+      <div class="modal-body">
+        <div class="form-group"><label class="form-label">订单号</label><input type="text" id="shipOrderNo" class="form-control" readonly></div>
+        <div class="form-group"><label class="form-label">物流公司 <span class="required">*</span></label><select id="shipCompany" class="form-control"></select></div>
+        <div class="form-group"><label class="form-label">物流单号 <span class="required">*</span></label><input type="text" id="shipTrack" class="form-control" placeholder="请输入物流单号"></div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-close-modal="shipModal">取消</button><button class="btn btn-primary" onclick="saveShip()">确认发货</button></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="batchShipModal">
+    <div class="modal" style="width:620px;">
+      <div class="modal-header"><h3 class="modal-title">批量发货</h3><button class="modal-close" data-close-modal="batchShipModal">✕</button></div>
+      <div class="modal-body">
+        <div class="form-group"><label class="form-label">物流公司 <span class="required">*</span></label><select id="batchShipCompany" class="form-control"></select></div>
+        <div class="form-group"><label class="form-label">运单号（按订单填写）</label>
+          <div id="batchShipRows" style="max-height:280px;overflow-y:auto;"></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-close-modal="batchShipModal">取消</button><button class="btn btn-primary" onclick="saveBatchShip()">确认批量发货</button></div>
+    </div>
+  </div>
+
+  <script src="../../js/common.js?v=20260904e"></script>
+  <script>
+    const API = AdminUI.API_BASE;
+    let SIZE = 10;
+    const STATUS_TEXT = { 1: '待付款', 2: '待发货', 3: '已发货', 4: '已完成', 5: '已取消', 6: '售后中' };
+    const STATUS_CLS = { 1: 'warning', 2: 'primary', 3: 'info', 4: 'success', 5: 'default', 6: 'danger' };
+    const F = { order_no: '', member: '', receiver: '', pay_status: '', order_status: '', order_source: '', start_date: '', end_date: '' };
+    let PAGE = 1;
+    let CUR = null;
+    let EXPRESS = [];
+
+    function esc(v) { return AdminUI.escHtml(v === null || v === undefined ? '' : String(v)); }
+    function money(v) { return (Number(v || 0)).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    function badge(status) { return '<span class="badge-tag ' + (STATUS_CLS[status] || 'default') + '">' + STATUS_TEXT[status] + '</span>'; }
+
+    function renderTabs(counts) {
+      const tabs = [
+        { v: '', label: '全部', c: counts.all, cls: '' },
+        { v: '1', label: '待付款', c: counts['1'] || 0, cls: 'warning' },
+        { v: '2', label: '待发货', c: counts['2'] || 0, cls: 'primary' },
+        { v: '3', label: '已发货', c: counts['3'] || 0, cls: 'info' },
+        { v: '4', label: '已完成', c: counts['4'] || 0, cls: 'success' },
+        { v: '5', label: '已取消', c: counts['5'] || 0, cls: 'default' },
+        { v: '6', label: '售后中', c: counts['6'] || 0, cls: 'danger' }
+      ];
+      document.getElementById('statusTabs').innerHTML = '<div style="display:flex;gap:24px;flex-wrap:wrap;">' + tabs.map(function (t) {
+        const active = String(F.order_status) === t.v;
+        const color = active ? 'var(--primary)' : 'var(--text-secondary)';
+        const numColor = active ? 'var(--primary)' : (t.cls === 'warning' ? 'var(--warning)' : t.cls === 'success' ? 'var(--success)' : t.cls === 'danger' ? 'var(--danger)' : t.cls === 'info' ? 'var(--info)' : 'var(--text-muted)');
+        return '<span style="cursor:pointer;font-size:13px;color:' + color + ';font-weight:' + (active ? '600' : '400') + ';border-bottom:2px solid ' + (active ? 'var(--primary)' : 'transparent') + ';padding:6px 2px;" onclick="switchTab(\'' + t.v + '\')">' + t.label + ' <span style="color:' + numColor + ';">(' + t.c + ')</span></span>';
+      }).join('') + '</div>';
+    }
+
+    function switchTab(v) {
+      F.order_status = v;
+      document.getElementById('fOrderStatus').value = v;
+      loadOrders(1);
+    }
+
+    function loadOrders(page) {
+      PAGE = page || 1;
+      const params = {
+        page: PAGE, page_size: SIZE,
+        order_no: F.order_no || undefined,
+        member: F.member || undefined,
+        receiver: F.receiver || undefined,
+        pay_status: F.pay_status === '' ? undefined : F.pay_status,
+        order_status: F.order_status === '' ? undefined : F.order_status,
+        order_source: F.order_source || undefined,
+        start_date: F.start_date || undefined,
+        end_date: F.end_date || undefined
+      };
+      AdminUI.get(API + '/orders', params).then(function (data) {
+        if (!data) return;
+        renderTabs(data.orderStatusCounts || { all: 0 });
+        renderOrders(data.list || [], data.total || 0);
+      });
+    }
+
+    function renderOrders(list, total) {
+      const canShip = AdminUI.can('order:ship');
+      const canEdit = AdminUI.can('order:edit');
+      const canCancel = AdminUI.can('order:cancel');
+      const rows = list.map(function (o) {
+        let acts = '<a class="action-link" onclick="viewDetail(' + o.id + ')">详情</a>';
+        if (o.orderStatus === 2 && canShip) acts += '<a class="action-link" onclick="openShip(' + o.id + ')">发货</a>';
+        if (o.orderStatus === 1 && canEdit) acts += '<a class="action-link warning" onclick="openPrice(' + o.id + ')">改价</a>';
+        if (o.orderStatus === 1 && canCancel) acts += '<a class="action-link danger" onclick="cancelOrder(' + o.id + ')">取消</a>';
+        return '<tr>' +
+          '<td class="col-check"><input type="checkbox" class="row-check" value="' + o.id + '"' + (o.orderStatus === 2 ? '' : ' disabled') + '></td>' +
+          '<td><div style="font-family:monospace;font-size:12px;color:var(--primary);cursor:pointer;" onclick="viewDetail(' + o.id + ')">' + esc(o.orderNo) + '</div>' +
+          '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">' + AdminUI.fmtTime(o.createdAt) + '</div></td>' +
+          '<td title="' + esc(o.memberName || '') + '">' + (o.memberName ? esc(o.memberName) : '-') + '</td>' +
+          '<td class="cell-break"><div>' + esc(o.receiverName || '-') + '</div>' +
+          (o.receiverPhone ? '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">' + esc(o.receiverPhone) + '</div>' : '') + '</td>' +
+          '<td><div class="cell-ellipsis" style="font-size:12px;" title="' + esc(o.goodsSummary) + '">' + esc(o.goodsSummary) + '</div></td>' +
+          '<td class="amount">¥ ' + money(o.payAmount) + '</td>' +
+          '<td>' + badge(o.orderStatus) + '</td>' +
+          '<td class="col-actions">' + acts + '</td>' +
+          '</tr>';
+      }).join('');
+      document.getElementById('orderBody').innerHTML = rows || '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:40px 0;">暂无数据</td></tr>';
+      AdminUI.initCheckAll();
+      syncBatch();
+      AdminUI.renderPagination('orderPagination', PAGE, Math.max(1, Math.ceil(total / SIZE)), total, SIZE);
+    }
+
+    function syncBatch() {
+      const n = document.querySelectorAll('#orderBody .row-check:checked').length;
+      const bar = document.getElementById('batchBar');
+      document.getElementById('batchCount').textContent = n;
+      bar.style.display = n ? 'flex' : 'none';
+    }
+
+    function doSearch() {
+      F.order_no = document.getElementById('fOrderNo').value.trim();
+      F.member = document.getElementById('fMember').value.trim();
+      F.receiver = document.getElementById('fReceiver').value.trim();
+      F.pay_status = document.getElementById('fPayStatus').value;
+      F.order_status = document.getElementById('fOrderStatus').value;
+      F.order_source = document.getElementById('fSource').value;
+      F.start_date = document.getElementById('fStart').value;
+      F.end_date = document.getElementById('fEnd').value;
+      loadOrders(1);
+    }
+
+    function resetSearch() {
+      ['fOrderNo', 'fMember', 'fReceiver', 'fStart', 'fEnd'].forEach(function (id) { document.getElementById(id).value = ''; });
+      ['fPayStatus', 'fOrderStatus', 'fSource'].forEach(function (id) { document.getElementById(id).value = ''; });
+      F.order_no = ''; F.member = ''; F.receiver = ''; F.pay_status = ''; F.order_status = ''; F.order_source = ''; F.start_date = ''; F.end_date = '';
+      loadOrders(1);
+    }
+
+    function selectedRows() {
+      return Array.prototype.map.call(document.querySelectorAll('#orderBody .row-check:checked'), function (c) { return Number(c.value); });
+    }
+
+    let detailSeq = 0;
+
+    async function viewDetail(id) {
+      const seq = ++detailSeq;
+      const bodyEl = document.getElementById('detailBody');
+      bodyEl.innerHTML = '<div style="padding:80px 20px;text-align:center;color:var(--text-muted);font-size:13px;"><div style="font-size:30px;margin-bottom:10px;">⏳</div>订单详情加载中…</div>';
+      document.getElementById('detailFooter').innerHTML = '';
+      let d;
+      try {
+        d = await AdminUI.get(API + '/orders/' + id);
+      } catch (e) {
+        if (seq === detailSeq) AdminUI.closeDrawer('orderDetail');
+        return;
+      }
+      if (seq !== detailSeq) return;
+      if (!d) {
+        AdminUI.closeDrawer('orderDetail');
+        return;
+      }
+      CUR = d;
+      const items = d.items.map(function (it) {
+        const spec = it.specValue ? '<div style="font-size:12px;color:var(--text-muted);margin-top:2px;">规格：' + esc(it.specValue) + '</div>' : '';
+        return '<div style="display:flex;gap:12px;padding:12px;' + (d.items.length > 1 ? 'border-bottom:1px solid var(--border-light);' : '') + '">' +
+          '<div class="thumb-img" style="background:#f5f7fa;">' + (it.goodsImage ? '<img src="' + esc(it.goodsImage) + '" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">' : '🛍️') + '</div>' +
+          '<div style="flex:1;">' +
+          '<div style="font-weight:500;font-size:13px;">' + esc(it.goodsName) + '</div>' + spec +
+          '<div style="display:flex;justify-content:space-between;margin-top:6px;"><span class="amount">¥ ' + money(it.price) + '</span><span style="color:var(--text-secondary);font-size:12px;">x' + it.quantity + '</span></div>' +
+          '</div></div>';
+      }).join('');
+      const logs = d.logs.slice().reverse().map(function (lg) {
+        const ic = lg.operatorType === 2 ? '' : '';
+        return '<div class="timeline-item' + (lg.action === '订单发货' || lg.action === '订单支付' ? ' success' : '') + '"><div class="timeline-dot"></div><div class="timeline-content"><div class="timeline-title">' + esc(lg.action) + '</div><div class="timeline-desc">' + esc(lg.content || '') + ' · ' + esc(lg.operatorName || '') + '</div><div class="timeline-time">' + AdminUI.fmtTime(lg.createdAt) + '</div></div></div>';
+      }).join('');
+      const as = d.afterSales.length ? d.afterSales.map(function (a) {
+        return '<div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px dashed var(--border-light);">' +
+          '<span style="font-family:monospace;">' + esc(a.afterSaleNo) + '</span><span>' + esc(a.typeText) + '</span>' +
+          '<span class="amount">¥ ' + money(a.amount) + '</span><span>' + esc(a.statusText) + '</span></div>';
+      }).join('') : '<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">暂无售后申请</div>';
+      const logistics = d.logistics && d.logistics.company ? '<div class="detail-item"><span class="detail-label">物流信息：</span><span class="detail-value">' + esc(d.logistics.company) + ' ' + esc(d.logistics.no) + '</span></div>' : '';
+      document.getElementById('detailBody').innerHTML =
+        '<div style="background:linear-gradient(135deg,var(--primary),var(--primary-light));color:#fff;padding:20px;border-radius:var(--radius-lg);margin-bottom:20px;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+        '<div><div style="font-size:12px;opacity:0.8;">订单状态</div><div style="font-size:20px;font-weight:700;margin-top:4px;">' + esc(d.orderStatusText) + '</div></div>' +
+        '<div style="text-align:right;"><div style="font-size:12px;opacity:0.8;">订单号</div><div style="font-size:14px;font-weight:600;margin-top:4px;font-family:monospace;">' + esc(d.orderNo) + '</div></div></div></div>' +
+        '<div class="detail-section"><div class="detail-section-title">商品信息</div><div style="border:1px solid var(--border-color);border-radius:var(--radius);overflow:hidden;">' + items + '</div></div>' +
+        '<div class="detail-section"><div class="detail-section-title">价格明细</div>' +
+        '<div style="background:var(--content-bg);padding:16px;border-radius:var(--radius);">' +
+        '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;"><span style="color:var(--text-secondary);">商品总额</span><span>¥ ' + money(d.totalAmount) + '</span></div>' +
+        '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;"><span style="color:var(--text-secondary);">运费</span><span>¥ ' + money(d.freightAmount) + '</span></div>' +
+        '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;"><span style="color:var(--text-secondary);">优惠券</span><span style="color:var(--danger);">- ¥ ' + money(d.couponAmount) + '</span></div>' +
+        '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;"><span style="color:var(--text-secondary);">积分抵扣</span><span style="color:var(--danger);">- ¥ ' + money(d.pointsAmount) + '</span></div>' +
+        '<div style="border-top:1px solid var(--border-color);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;"><span style="font-weight:600;">实付金额</span><span style="font-size:18px;font-weight:700;color:var(--danger);">¥ ' + money(d.payAmount) + '</span></div></div></div>' +
+        '<div class="detail-section"><div class="detail-section-title">支付信息</div><div class="detail-grid">' +
+        '<div class="detail-item"><span class="detail-label">支付方式：</span><span class="detail-value">' + esc(d.payTypeText || '—') + '</span></div>' +
+        '<div class="detail-item"><span class="detail-label">支付状态：</span><span class="detail-value">' + esc(d.payStatusText) + '</span></div>' +
+        '<div class="detail-item"><span class="detail-label">支付时间：</span><span class="detail-value">' + AdminUI.fmtTime(d.paidAt) + '</span></div>' +
+        '</div></div>' +
+        '<div class="detail-section"><div class="detail-section-title">收货信息</div><div class="detail-grid">' +
+        '<div class="detail-item"><span class="detail-label">收货人：</span><span class="detail-value">' + esc(d.receiver.name) + '</span></div>' +
+        '<div class="detail-item"><span class="detail-label">联系电话：</span><span class="detail-value">' + esc(d.receiver.phone) + '</span></div>' +
+        '<div class="detail-item" style="grid-column:span 2;"><span class="detail-label">收货地址：</span><span class="detail-value">' + esc(d.receiver.address) + '</span></div>' +
+        '<div class="detail-item"><span class="detail-label">买家留言：</span><span class="detail-value">' + esc(d.buyerMessage || '无') + '</span></div>' +
+        '<div class="detail-item"><span class="detail-label">订单来源：</span><span class="detail-value">' + esc(d.orderSourceText || '—') + '</span></div>' + logistics +
+        '</div></div>' +
+        '<div class="detail-section"><div class="detail-section-title">售后申请</div>' + as + '</div>' +
+        (d.logs.length ? '<div class="detail-section"><div class="detail-section-title">操作日志</div><div class="timeline">' + logs + '</div></div>' : '');
+      let footer = '<button class="btn btn-secondary" onclick="AdminUI.closeDrawer(\'orderDetail\')">关闭</button>';
+      if (d.orderStatus === 1 && AdminUI.can('order:edit')) footer += '<button class="btn btn-warning" onclick="openPrice(' + d.id + ')">修改价格</button>';
+      if (d.orderStatus === 1 && AdminUI.can('order:cancel')) footer += '<button class="btn btn-danger" onclick="cancelOrder(' + d.id + ')">取消订单</button>';
+      if (d.orderStatus === 2 && AdminUI.can('order:ship')) footer += '<button class="btn btn-primary" onclick="openShip(' + d.id + ')">立即发货</button>';
+      document.getElementById('detailFooter').innerHTML = footer;
+      requestAnimationFrame(function () { AdminUI.openDrawer('orderDetail'); });
+    }
+
+    function openPrice(id) {
+      AdminUI.get(API + '/orders/' + id).then(function (d) {
+        if (!d) return;
+        CUR = d;
+        document.getElementById('priceOrderNo').value = d.orderNo;
+        document.getElementById('priceOriginal').value = '¥ ' + money(d.payAmount);
+        document.getElementById('priceAmount').value = '';
+        document.getElementById('priceReason').value = '';
+        AdminUI.closeDrawer('orderDetail');
+        AdminUI.openModal('priceModal');
+      });
+    }
+
+    async function savePrice() {
+      const amount = Number(document.getElementById('priceAmount').value);
+      if (!(amount >= 0)) { AdminUI.showToast('请输入正确的订单金额', 'warning'); return; }
+      const reason = document.getElementById('priceReason').value.trim();
+      try {
+        await AdminUI.put(API + '/orders/' + CUR.id + '/price', { amount: amount, reason: reason });
+        AdminUI.closeModal('priceModal');
+        AdminUI.showToast('价格修改成功', 'success');
+        loadOrders(PAGE);
+      } catch (e) { }
+    }
+
+    function fillCompanySelect(sel) {
+      const el = document.getElementById(sel);
+      const enabled = EXPRESS.filter(function (x) { return x.status === 1; });
+      el.innerHTML = '<option value="">请选择物流公司</option>' + enabled.map(function (x) {
+        return '<option value="' + esc(x.name) + '">' + esc(x.name) + '</option>';
+      }).join('');
+    }
+
+    function openShip(id) {
+      AdminUI.get(API + '/orders/' + id).then(function (d) {
+        if (!d) return;
+        CUR = d;
+        document.getElementById('shipOrderNo').value = d.orderNo;
+        document.getElementById('shipTrack').value = '';
+        fillCompanySelect('shipCompany');
+        AdminUI.closeDrawer('orderDetail');
+        AdminUI.openModal('shipModal');
+      });
+    }
+
+    async function saveShip() {
+      const company = document.getElementById('shipCompany').value;
+      const no = document.getElementById('shipTrack').value.trim();
+      if (!company || !no) { AdminUI.showToast('请填写物流公司与单号', 'warning'); return; }
+      try {
+        await AdminUI.post(API + '/orders/' + CUR.id + '/ship', { logisticsCompany: company, logisticsNo: no });
+        AdminUI.closeModal('shipModal');
+        AdminUI.showToast('发货成功', 'success');
+        loadOrders(PAGE);
+      } catch (e) { }
+    }
+
+    function openBatchShip() {
+      const ids = selectedRows();
+      if (!ids.length) { AdminUI.showToast('请先选择待发货订单', 'warning'); return; }
+      fillCompanySelect('batchShipCompany');
+      const rows = document.getElementById('batchShipRows');
+      rows.innerHTML = ids.map(function (id, i) {
+        return '<div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">' +
+          '<span style="width:22px;color:var(--text-muted);font-size:12px;">' + (i + 1) + '</span>' +
+          '<span data-oid="' + id + '" style="flex:1;font-family:monospace;font-size:12px;background:var(--content-bg);padding:8px 10px;border-radius:6px;"></span>' +
+          '<input type="text" class="form-control" data-oid="' + id + '" placeholder="运单号" style="flex:1.4;"></div>';
+      }).join('');
+      AdminUI.get(API + '/orders', { page: 1, page_size: 100, order_status: 2 }).then(function (data) {
+        const map = {};
+        (data && data.list || []).forEach(function (o) { map[o.id] = o.orderNo; });
+        ids.forEach(function (id) {
+          const label = rows.querySelector('span[data-oid="' + id + '"]');
+          if (label) label.textContent = map[id] || ('#' + id);
+        });
+      });
+      AdminUI.openModal('batchShipModal');
+    }
+
+    async function saveBatchShip() {
+      const company = document.getElementById('batchShipCompany').value;
+      if (!company) { AdminUI.showToast('请选择物流公司', 'warning'); return; }
+      const orders = [];
+      const inputs = document.querySelectorAll('#batchShipRows input[data-oid]');
+      let ok = true;
+      inputs.forEach(function (inp) {
+        const no = inp.value.trim();
+        if (!no) { ok = false; return; }
+        orders.push({ orderId: Number(inp.getAttribute('data-oid')), logisticsCompany: company, logisticsNo: no });
+      });
+      if (!ok) { AdminUI.showToast('请为每个订单填写运单号', 'warning'); return; }
+      try {
+        await AdminUI.post(API + '/orders/batch/ship', { orders: orders });
+        AdminUI.closeModal('batchShipModal');
+        AdminUI.showToast('批量发货成功', 'success');
+        loadOrders(1);
+      } catch (e) { }
+    }
+
+    function cancelOrder(id) {
+      AdminUI.get(API + '/orders/' + id).then(function (d) {
+        if (!d) return;
+        AdminUI.confirmAction('确认取消订单 ' + d.orderNo + '？取消后将自动回补库存。', async function () {
+          try {
+            await AdminUI.post(API + '/orders/' + id + '/cancel');
+            AdminUI.showToast('订单已取消', 'success');
+            AdminUI.closeDrawer('orderDetail');
+            loadOrders(PAGE);
+          } catch (e) { }
+        });
+      });
+    }
+
+    function exportOrders() {
+      const q = '?order_no=' + encodeURIComponent(F.order_no) +
+        (F.member ? '&member=' + encodeURIComponent(F.member) : '') +
+        (F.receiver ? '&receiver=' + encodeURIComponent(F.receiver) : '') +
+        (F.pay_status !== '' ? '&pay_status=' + F.pay_status : '') +
+        (F.order_status !== '' ? '&order_status=' + F.order_status : '') +
+        (F.order_source ? '&order_source=' + F.order_source : '') +
+        (F.start_date ? '&start_date=' + F.start_date : '') +
+        (F.end_date ? '&end_date=' + F.end_date : '');
+      AdminUI.download(API + '/orders/export' + q, 'orders.csv');
+    }
+
+    (async function () {
+      const ok = await AdminUI.initPage({ key: 'order-list', breadcrumb: ['订单管理', '订单列表'], need: ['order:list'] });
+      if (!ok) return;
+      if (!AdminUI.can('order:export')) document.getElementById('btnExport').style.display = 'none';
+      document.getElementById('orderTable').addEventListener('change', syncBatch);
+      const pg = document.getElementById('orderPagination');
+      pg.addEventListener('click', function (e) {
+        const b = e.target.closest('button[data-page]');
+        if (!b || b.disabled) return;
+        loadOrders(Number(b.getAttribute('data-page')));
+      });
+      const debouncedSearch = AdminUI.debounce(doSearch, 300);
+      ['fOrderNo', 'fMember', 'fReceiver'].forEach(function (id) {
+        document.getElementById(id).addEventListener('input', debouncedSearch);
+      });
+      ['fPayStatus', 'fOrderStatus', 'fSource', 'fStart', 'fEnd'].forEach(function (id) {
+        document.getElementById(id).addEventListener('change', doSearch);
+      });
+      pg.addEventListener('change', function (e) {
+        if (e.target.classList.contains('page-size-select')) {
+          SIZE = parseInt(e.target.value, 10);
+          loadOrders(1);
+        }
+      });
+      try {
+        EXPRESS = await AdminUI.get(API + '/express-companies') || [];
+      } catch (e) { EXPRESS = []; }
+      await loadOrders(1);
+    })();
+  </script>
+</body>
+</html>

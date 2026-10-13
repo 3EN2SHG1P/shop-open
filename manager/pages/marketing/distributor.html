@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>分销管理 - 商城后台管理系统</title>
+  <link rel="stylesheet" href="../../css/common.css?v=20260904e">
+  <style>
+    #distModal .modal { width: 560px; }
+    #commissionModal .modal { width: 640px; }
+    #distModal .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main-wrapper">
+      <header class="header" id="header"></header>
+      <main class="content">
+        <div class="page-header">
+          <div><h1 class="page-title">分销管理</h1><p class="page-desc">分销商与佣金等级的演示数据管理</p></div>
+          <div class="btn-group"><button class="btn btn-primary" id="btnAdd" onclick="openCreate()" style="display:none;">➕ 新增分销商</button></div>
+        </div>
+        <div class="alert alert-info" style="margin-bottom:16px;">本页为<strong>演示用简化模型</strong>：仅维护分销商与佣金比例的记录，<strong>不涉及真实资金结算、不实现多级返佣</strong>，也不代表任何真实分销方案。</div>
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-body" style="padding:12px 20px;">
+            <div class="filter-bar">
+              <input type="text" class="form-control filter-input" id="fKeyword" placeholder="分销商昵称/手机号">
+              <select class="form-control filter-input" id="fLevel" style="width:130px;"><option value="">分销等级</option><option value="1">一级分销</option><option value="2">二级分销</option><option value="3">三级分销</option></select>
+              <select class="form-control filter-input" id="fStatus" style="width:120px;"><option value="">审核状态</option><option value="1">待审核</option><option value="2">已通过</option><option value="3">已拒绝</option></select>
+              <div class="filter-actions"><button class="btn btn-primary" onclick="resetSearch()">重置</button></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body no-padding">
+            <div class="table-wrapper">
+              <table class="table">
+                <thead><tr><th>分销商</th><th>等级</th><th>佣金比例</th><th>累计佣金</th><th>审核状态</th><th>邀请人</th><th>加入时间</th><th class="col-actions">操作</th></tr></thead>
+                <tbody id="distBody"></tbody>
+              </table>
+            </div>
+            <div id="distPagination" class="pagination"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="distModal">
+    <div class="modal">
+      <div class="modal-header"><h3 class="modal-title" id="distModalTitle">新增分销商</h3><button class="modal-close" data-close-modal="distModal">✕</button></div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group" style="grid-column:span 2;"><label class="form-label">分销会员 <span class="required">*</span></label><select id="dMember" class="form-control"><option value="">请选择会员</option></select></div>
+          <div class="form-group"><label class="form-label">分销等级</label><select id="dLevel" class="form-control"><option value="1">一级分销</option><option value="2">二级分销</option><option value="3">三级分销</option></select></div>
+          <div class="form-group"><label class="form-label">佣金比例(%)</label><input type="number" id="dRate" class="form-control" min="0" max="100" step="0.1"></div>
+          <div class="form-group"><label class="form-label">邀请人(可留空)</label><select id="dInvited" class="form-control"><option value="">无（顶级分销）</option></select></div>
+          <div class="form-group"><label class="form-label">审核状态</label><select id="dStatus" class="form-control"><option value="2">已通过</option><option value="1">待审核</option><option value="3">已拒绝</option></select></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-close-modal="distModal">取消</button><button class="btn btn-primary" onclick="saveDist()">保存</button></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="commissionModal">
+    <div class="modal">
+      <div class="modal-header"><h3 class="modal-title">佣金记录</h3><button class="modal-close" data-close-modal="commissionModal">✕</button></div>
+      <div class="modal-body">
+        <div class="table-wrapper">
+          <table class="table">
+            <thead><tr><th>订单号</th><th>佣金(元)</th><th>状态</th><th>时间</th></tr></thead>
+            <tbody id="commissionBody"></tbody>
+          </table>
+        </div>
+        <div id="commissionPagination" class="pagination"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../js/common.js?v=20260904e"></script>
+  <script>
+    const API = AdminUI.API_BASE;
+    let EDIT_ID = null;
+    let COMM_DIST_ID = null;
+    let PAGE = 1;
+    let SIZE = 10;
+    const F = { keyword: '', level: '', status: '' };
+    let MEMBERS = [];
+    function esc(v) { return AdminUI.escHtml(v === null || v === undefined ? '' : String(v)); }
+    function money(v) { return (Number(v || 0)).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    function levelBadge(l) { return '<span class="badge-tag ' + (l === 1 ? 'primary' : (l === 2 ? 'info' : 'warning')) + '">' + (l === 1 ? '一级' : (l === 2 ? '二级' : '三级')) + '</span>'; }
+    function statusBadge(s) { return s === 1 ? '<span class="badge-tag warning">待审核</span>' : (s === 2 ? '<span class="badge-tag success">已通过</span>' : '<span class="badge-tag danger">已拒绝</span>'); }
+
+    function doSearch() {
+      F.keyword = document.getElementById('fKeyword').value.trim();
+      F.level = document.getElementById('fLevel').value;
+      F.status = document.getElementById('fStatus').value;
+      loadDists(1);
+    }
+    function resetSearch() {
+      document.getElementById('fKeyword').value = '';
+      document.getElementById('fLevel').value = ''; document.getElementById('fStatus').value = '';
+      F.keyword = ''; F.level = ''; F.status = ''; loadDists(1);
+    }
+
+    function loadDists(page) {
+      PAGE = page || 1;
+      const params = { page: PAGE, page_size: SIZE };
+      if (F.keyword) params.keyword = F.keyword;
+      if (F.level !== '') params.level = F.level;
+      if (F.status !== '') params.status = F.status;
+      AdminUI.get(API + '/distributors', params).then(function (data) {
+        if (!data) return;
+        const rows = (data.list || []).map(function (d) {
+          return '<tr>' +
+            '<td style="font-weight:600;">' + esc(d.memberName) + '<div style="font-size:11px;color:var(--text-muted);">' + esc(d.memberPhone || '') + '</div></td>' +
+            '<td>' + levelBadge(d.level) + '</td>' +
+            '<td><b style="color:var(--danger);">' + Number(d.commissionRate || 0) + '%</b></td>' +
+            '<td><span class="badge-tag primary">¥' + money(d.totalCommission) + '</span></td>' +
+            '<td>' + statusBadge(d.status) + '</td>' +
+            '<td style="font-size:12px;color:var(--text-muted);">' + (d.invitedBy ? ('会员 #' + d.invitedBy) : '—') + '</td>' +
+            '<td style="font-size:12px;">' + esc((d.createdAt || '').slice(0, 10)) + '</td>' +
+            '<td class="col-actions">' +
+            (AdminUI.can('marketing:list') ? '<a class="action-link" onclick="openCommissions(' + d.id + ')">佣金</a>' : '') +
+            (AdminUI.can('marketing:edit') ? '<a class="action-link" onclick="openEdit(' + d.id + ')">编辑</a>' : '') +
+            '</td></tr>';
+        }).join('');
+        document.getElementById('distBody').innerHTML = rows || '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:40px 0;">暂无分销商</td></tr>';
+        AdminUI.renderPagination('distPagination', PAGE, Math.max(1, Math.ceil(data.total / SIZE)), data.total, SIZE);
+      });
+    }
+
+    function fillMembers() {
+      document.getElementById('dMember').innerHTML = '<option value="">请选择会员</option>' + MEMBERS.map(function (m) {
+        return '<option value="' + m.id + '">' + esc(m.nickname) + '（' + esc(m.phone || '') + '）</option>';
+      }).join('');
+      // 邀请人可以是任何会员（含已是分销商的），所以单独渲染一份带「无」的列表
+      document.getElementById('dInvited').innerHTML = '<option value="">无（顶级分销）</option>' + MEMBERS.map(function (m) {
+        return '<option value="' + m.id + '">' + esc(m.nickname) + '（' + esc(m.phone || '') + '）</option>';
+      }).join('');
+    }
+
+    function openCreate() {
+      EDIT_ID = null;
+      document.getElementById('distModalTitle').textContent = '新增分销商';
+      document.getElementById('dMember').value = '';
+      document.getElementById('dLevel').value = '1';
+      document.getElementById('dRate').value = '5';
+      document.getElementById('dInvited').value = '';
+      document.getElementById('dStatus').value = '2';
+      AdminUI.openModal('distModal');
+    }
+
+    function openEdit(id) {
+      AdminUI.findRow(API + '/distributors', id).then(function (d) {
+        if (!d) return;
+        EDIT_ID = id;
+        document.getElementById('distModalTitle').textContent = '编辑分销商';
+        // 当前分销会员与邀请人都可能不在「未成为分销商的会员」列表里，缺了会回填失败
+        let needFill = false;
+        if (MEMBERS.filter(function (m) { return m.id === d.memberId; }).length === 0) {
+          MEMBERS.push({ id: d.memberId, nickname: d.memberName, phone: d.memberPhone });
+          needFill = true;
+        }
+        if (d.invitedBy && MEMBERS.filter(function (m) { return m.id === d.invitedBy; }).length === 0) {
+          MEMBERS.push({ id: d.invitedBy, nickname: '会员#' + d.invitedBy, phone: '' });
+          needFill = true;
+        }
+        if (needFill) fillMembers();
+        document.getElementById('dMember').value = String(d.memberId);
+        document.getElementById('dLevel').value = String(d.level);
+        document.getElementById('dRate').value = d.commissionRate;
+        document.getElementById('dStatus').value = String(d.status);
+        document.getElementById('dInvited').value = d.invitedBy ? String(d.invitedBy) : '';
+        AdminUI.openModal('distModal');
+      });
+    }
+
+    async function saveDist() {
+      const memberId = Number(document.getElementById('dMember').value);
+      const rate = Number(document.getElementById('dRate').value || 0);
+      if (!memberId) { AdminUI.showToast('请选择分销会员', 'warning'); return; }
+      if (rate < 0 || rate > 100) { AdminUI.showToast('佣金比例需在 0~100 之间', 'warning'); return; }
+      const invited = Number(document.getElementById('dInvited').value) || null;
+      if (invited && invited === memberId) { AdminUI.showToast('邀请人不能是分销会员本人', 'warning'); return; }
+      const body = {
+        memberId: memberId,
+        level: Number(document.getElementById('dLevel').value),
+        commissionRate: rate,
+        status: Number(document.getElementById('dStatus').value),
+        invitedBy: invited
+      };
+      const url = API + '/distributors' + (EDIT_ID ? '/' + EDIT_ID : '');
+      try {
+        if (EDIT_ID) await AdminUI.put(url, body); else await AdminUI.post(url, body);
+        AdminUI.closeModal('distModal');
+        AdminUI.showToast(EDIT_ID ? '分销商已更新' : '分销商已新增', 'success');
+        loadDists(EDIT_ID ? PAGE : 1);
+      } catch (e) { }
+    }
+
+    function openCommissions(id) {
+      COMM_DIST_ID = id;
+      AdminUI.openModal('commissionModal');
+      loadCommissions(1);
+    }
+
+    function loadCommissions(page) {
+      AdminUI.get(API + '/distributors/' + COMM_DIST_ID + '/commissions', { page: page || 1, page_size: 10 }).then(function (data) {
+        if (!data) return;
+        const rows = (data.list || []).map(function (c) {
+          return '<tr><td>' + esc(c.orderNo || '—') + '</td>' +
+            '<td style="color:var(--danger);font-weight:600;">¥' + money(c.amount) + '</td>' +
+            '<td>' + (c.status === 1 ? '<span class="badge-tag warning">待结算</span>' : '<span class="badge-tag success">已结算</span>') + '</td>' +
+            '<td style="font-size:12px;">' + esc(AdminUI.fmtTime(c.createdAt) || '—') + '</td></tr>';
+        }).join('');
+        document.getElementById('commissionBody').innerHTML = rows || '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:32px 0;">暂无佣金记录</td></tr>';
+        AdminUI.renderPagination('commissionPagination', page || 1, Math.max(1, Math.ceil(data.total / 10)), data.total, 10);
+      });
+    }
+
+    (async function () {
+      const ok = await AdminUI.initPage({ key: 'distributor', breadcrumb: ['营销管理', '分销管理'], need: ['marketing:list'] });
+      if (!ok) return;
+      if (AdminUI.can('marketing:add')) document.getElementById('btnAdd').style.display = '';
+      try { MEMBERS = await AdminUI.get(API + '/marketing/member-options') || []; } catch (e) { MEMBERS = []; }
+      fillMembers();
+      document.getElementById('distPagination').addEventListener('click', function (e) {
+        const b = e.target.closest('button[data-page]');
+        if (!b || b.disabled) return;
+        loadDists(Number(b.getAttribute('data-page')));
+      });
+      const debouncedSearch = AdminUI.debounce(doSearch, 300);
+      document.getElementById('fKeyword').addEventListener('input', debouncedSearch);
+      document.getElementById('fLevel').addEventListener('change', doSearch);
+      document.getElementById('fStatus').addEventListener('change', doSearch);
+      document.getElementById('distPagination').addEventListener('change', function (e) {
+        if (e.target.classList.contains('page-size-select')) {
+          SIZE = parseInt(e.target.value, 10);
+          loadDists(1);
+        }
+      });
+      document.getElementById('commissionPagination').addEventListener('click', function (e) {
+        const b = e.target.closest('button[data-page]');
+        if (!b || b.disabled) return;
+        loadCommissions(Number(b.getAttribute('data-page')));
+      });
+      loadDists(1);
+    })();
+  </script>
+</body>
+</html>

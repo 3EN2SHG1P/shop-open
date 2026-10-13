@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>秒杀活动 - 商城后台管理系统</title>
+  <link rel="stylesheet" href="../../css/common.css?v=20260904e">
+  <style>
+    #seckillModal .modal { width: 640px; }
+    #seckillModal .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main-wrapper">
+      <header class="header" id="header"></header>
+      <main class="content">
+        <div class="page-header">
+          <div><h1 class="page-title">秒杀活动</h1><p class="page-desc">限时低价促销，活动状态根据起止时间自动流转</p></div>
+          <div class="btn-group"><button class="btn btn-primary" id="btnAdd" onclick="openCreate()" style="display:none;">➕ 新增活动</button></div>
+        </div>
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-body" style="padding:12px 20px;">
+            <div class="filter-bar">
+              <input type="text" class="form-control filter-input" id="fKeyword" placeholder="活动名称/商品关键词">
+              <div class="filter-actions"><button class="btn btn-primary" onclick="resetSearch()">重置</button></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body no-padding">
+            <div class="table-wrapper">
+              <table class="table">
+                <thead><tr><th>活动名称</th><th>商品</th><th>秒杀价</th><th>库存/限购</th><th>活动时间</th><th>状态</th><th class="col-actions">操作</th></tr></thead>
+                <tbody id="seckillBody"></tbody>
+              </table>
+            </div>
+            <div id="seckillPagination" class="pagination"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="seckillModal">
+    <div class="modal">
+      <div class="modal-header"><h3 class="modal-title" id="seckillModalTitle">新增秒杀活动</h3><button class="modal-close" data-close-modal="seckillModal">✕</button></div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group" style="grid-column:span 2;"><label class="form-label">活动名称 <span class="required">*</span></label><input type="text" id="sName" class="form-control" maxlength="100" placeholder="如：国庆限时秒杀"></div>
+          <div class="form-group"><label class="form-label">秒杀商品 <span class="required">*</span></label><select id="sGoods" class="form-control" onchange="onGoodsChange()"><option value="">请选择商品</option></select></div>
+          <div class="form-group"><label class="form-label">参与规格(可留空)</label><select id="sSku" class="form-control"><option value="">不限规格</option></select></div>
+          <div class="form-group"><label class="form-label">秒杀价(元) <span class="required">*</span></label><input type="number" id="sPrice" class="form-control" min="0" step="0.01"></div>
+          <div class="form-group"><label class="form-label">秒杀库存 <span class="required">*</span></label><input type="number" id="sStock" class="form-control" min="0"></div>
+          <div class="form-group"><label class="form-label">每人限购</label><input type="number" id="sPerLimit" class="form-control" min="1" value="1"></div>
+          <div class="form-group"><label class="form-label">可叠加优惠</label><select id="sStack" class="form-control"><option value="0">否</option><option value="1">是</option></select></div>
+          <div class="form-group"><label class="form-label">开始时间 <span class="required">*</span></label><input type="datetime-local" id="sStart" class="form-control"></div>
+          <div class="form-group"><label class="form-label">结束时间 <span class="required">*</span></label><input type="datetime-local" id="sEnd" class="form-control"></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-close-modal="seckillModal">取消</button><button class="btn btn-primary" onclick="saveSeckill()">保存</button></div>
+    </div>
+  </div>
+
+  <script src="../../js/common.js?v=20260904e"></script>
+  <script>
+    const API = AdminUI.API_BASE;
+    let EDIT_ID = null;
+    let PAGE = 1;
+    let SIZE = 10;
+    let F = { keyword: '' };
+    let GOODS = [];
+    function esc(v) { return AdminUI.escHtml(v === null || v === undefined ? '' : String(v)); }
+    function money(v) { return (Number(v || 0)).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+    function stageBadge(st) {
+      if (st === 1) return '<span class="badge-tag info">待开始</span>';
+      if (st === 2) return '<span class="badge-tag success">进行中</span>';
+      return '<span class="badge-tag default">已结束</span>';
+    }
+
+    function doSearch() { F.keyword = document.getElementById('fKeyword').value.trim(); loadSeckills(1); }
+    function resetSearch() { document.getElementById('fKeyword').value = ''; F.keyword = ''; loadSeckills(1); }
+
+    function loadSeckills(page) {
+      PAGE = page || 1;
+      const params = { page: PAGE, page_size: SIZE };
+      if (F.keyword) params.keyword = F.keyword;
+      AdminUI.get(API + '/seckills', params).then(function (data) {
+        if (!data) return;
+        const rows = (data.list || []).map(function (a) {
+          return '<tr>' +
+            '<td style="font-weight:600;">' + esc(a.name) + '</td>' +
+            '<td><span class="badge-tag primary">' + esc(a.goodsName || ('商品#' + a.goodsId)) + '</span></td>' +
+            '<td><span style="color:var(--danger);font-weight:600;">¥' + money(a.seckillPrice) + '</span></td>' +
+            '<td style="font-size:12px;">库存 ' + a.seckillStock + ' · 每人限 ' + a.perLimit + '</td>' +
+            '<td style="font-size:12px;">' + esc((a.startTime || '').slice(0, 16)) + '<br><span style="color:var(--text-muted);">至 ' + esc((a.endTime || '').slice(0, 16)) + '</span></td>' +
+            '<td>' + stageBadge(a.status) + '</td>' +
+            '<td class="col-actions">' + (AdminUI.can('marketing:edit') ? '<a class="action-link" onclick="openEdit(' + a.id + ')">编辑</a>' : '<span style="color:var(--text-muted);">-</span>') + '</td></tr>';
+        }).join('');
+        document.getElementById('seckillBody').innerHTML = rows || '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px 0;">暂无秒杀活动</td></tr>';
+        AdminUI.renderPagination('seckillPagination', PAGE, Math.max(1, Math.ceil(data.total / SIZE)), data.total, SIZE);
+      });
+    }
+
+    function fillGoods() {
+      const sel = document.getElementById('sGoods');
+      sel.innerHTML = '<option value="">请选择商品</option>' + GOODS.map(function (g) {
+        return '<option value="' + g.id + '">' + esc(g.name) + '（¥' + money(g.price) + '）</option>';
+      }).join('');
+    }
+
+    function onGoodsChange() {
+      const gid = document.getElementById('sGoods').value;
+      const skuSel = document.getElementById('sSku');
+      skuSel.innerHTML = '<option value="">不限规格</option>';
+      if (!gid) return;
+      AdminUI.get(API + '/marketing/goods/' + gid + '/skus').then(function (list) {
+        skuSel.innerHTML = '<option value="">不限规格</option>' + (list || []).map(function (s) {
+          return '<option value="' + s.id + '">' + esc(s.skuCode) + '（¥' + money(s.price) + '）</option>';
+        }).join('');
+      }).catch(function () { });
+    }
+
+    function openCreate() {
+      EDIT_ID = null;
+      document.getElementById('seckillModalTitle').textContent = '新增秒杀活动';
+      document.getElementById('sName').value = '';
+      document.getElementById('sGoods').value = '';
+      document.getElementById('sSku').innerHTML = '<option value="">不限规格</option>';
+      document.getElementById('sPrice').value = '';
+      document.getElementById('sStock').value = '';
+      document.getElementById('sPerLimit').value = '1';
+      document.getElementById('sStack').value = '0';
+      document.getElementById('sStart').value = '';
+      document.getElementById('sEnd').value = '';
+      AdminUI.openModal('seckillModal');
+    }
+
+    function openEdit(id) {
+      AdminUI.get(API + '/seckills/' + id).then(function (a) {
+        if (!a) return;
+        EDIT_ID = id;
+        document.getElementById('seckillModalTitle').textContent = '编辑秒杀活动';
+        document.getElementById('sName').value = a.name;
+        if (GOODS.filter(function (g) { return g.id === a.goodsId; }).length === 0) {
+          GOODS.push({ id: a.goodsId, name: a.goodsName || ('商品#' + a.goodsId), price: a.goodsPrice });
+          fillGoods();
+        }
+        document.getElementById('sGoods').value = String(a.goodsId);
+        document.getElementById('sPrice').value = a.seckillPrice;
+        document.getElementById('sStock').value = a.seckillStock;
+        document.getElementById('sPerLimit').value = a.perLimit;
+        document.getElementById('sStack').value = String(a.isStackable || 0);
+        document.getElementById('sStart').value = (a.startTime || '').slice(0, 16);
+        document.getElementById('sEnd').value = (a.endTime || '').slice(0, 16);
+        AdminUI.get(API + '/marketing/goods/' + a.goodsId + '/skus').then(function (list) {
+          const skuSel = document.getElementById('sSku');
+          skuSel.innerHTML = '<option value="">不限规格</option>' + (list || []).map(function (s) {
+            return '<option value="' + s.id + '">' + esc(s.skuCode) + '（¥' + money(s.price) + '）</option>';
+          }).join('');
+          if (a.skuId) skuSel.value = String(a.skuId);
+        }).catch(function () { });
+        AdminUI.openModal('seckillModal');
+      });
+    }
+
+    async function saveSeckill() {
+      const name = document.getElementById('sName').value.trim();
+      const goodsId = Number(document.getElementById('sGoods').value);
+      const skuId = document.getElementById('sSku').value ? Number(document.getElementById('sSku').value) : null;
+      const price = Number(document.getElementById('sPrice').value || 0);
+      const stock = Number(document.getElementById('sStock').value || 0);
+      const start = document.getElementById('sStart').value;
+      const end = document.getElementById('sEnd').value;
+      if (!name) { AdminUI.showToast('请输入活动名称', 'warning'); return; }
+      if (!goodsId) { AdminUI.showToast('请选择秒杀商品', 'warning'); return; }
+      if (price <= 0) { AdminUI.showToast('秒杀价必须大于 0', 'warning'); return; }
+      if (!start || !end || end.replace('T', ' ') <= start.replace('T', ' ')) { AdminUI.showToast('请选择有效的活动时间', 'warning'); return; }
+      const body = {
+        name: name, goodsId: goodsId, skuId: skuId, seckillPrice: price, seckillStock: stock,
+        perLimit: Number(document.getElementById('sPerLimit').value || 1),
+        startTime: start.replace('T', ' '), endTime: end.replace('T', ' '),
+        isStackable: Number(document.getElementById('sStack').value)
+      };
+      const url = API + '/seckills' + (EDIT_ID ? '/' + EDIT_ID : '');
+      try {
+        if (EDIT_ID) await AdminUI.put(url, body); else await AdminUI.post(url, body);
+        AdminUI.closeModal('seckillModal');
+        AdminUI.showToast(EDIT_ID ? '活动已更新' : '活动已新增', 'success');
+        loadSeckills(EDIT_ID ? PAGE : 1);
+      } catch (e) { }
+    }
+
+    (async function () {
+      const ok = await AdminUI.initPage({ key: 'seckill', breadcrumb: ['营销管理', '秒杀活动'], need: ['marketing:list'] });
+      if (!ok) return;
+      if (AdminUI.can('marketing:add')) document.getElementById('btnAdd').style.display = '';
+      try { GOODS = await AdminUI.get(API + '/marketing/goods-options') || []; } catch (e) { GOODS = []; }
+      fillGoods();
+      document.getElementById('seckillPagination').addEventListener('click', function (e) {
+        const b = e.target.closest('button[data-page]');
+        if (!b || b.disabled) return;
+        loadSeckills(Number(b.getAttribute('data-page')));
+      });
+      const debouncedSearch = AdminUI.debounce(doSearch, 300);
+      document.getElementById('fKeyword').addEventListener('input', debouncedSearch);
+      document.getElementById('seckillPagination').addEventListener('change', function (e) {
+        if (e.target.classList.contains('page-size-select')) {
+          SIZE = parseInt(e.target.value, 10);
+          loadSeckills(1);
+        }
+      });
+      loadSeckills(1);
+    })();
+  </script>
+</body>
+</html>

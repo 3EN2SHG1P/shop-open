@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <link rel="icon" type="image/png" href="images/logo.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>商品详情 - 随心商城</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .detail-main { padding-bottom: 40px; }
+    .page-loading, .page-error { padding: 120px 0; text-align: center; color: var(--text-secondary); font-size: 14px; }
+    .product-section { background-color: var(--bg-white); padding: 24px; margin-bottom: 16px; display: flex; gap: 32px; }
+    /* 左侧图片区 */
+    .product-gallery { width: 400px; flex-shrink: 0; }
+    .main-image { width: 400px; height: 400px; display: flex; align-items: center; justify-content: center; background-color: var(--bg); border-radius: 4px; margin-bottom: 12px; }
+    .main-image img { max-width: 90%; max-height: 90%; object-fit: contain; }
+    .thumb-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .thumb-item { width: 64px; height: 64px; border: 2px solid var(--border); border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: border-color 0.2s; background-color: var(--bg); }
+    .thumb-item:hover, .thumb-item.active { border-color: var(--primary); }
+    .thumb-item img { max-width: 80%; max-height: 80%; object-fit: contain; }
+    /* 右侧信息区 */
+    .product-info { flex: 1; min-width: 0; }
+    .product-title { font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 8px; line-height: 1.4; }
+    .product-subtitle { font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; }
+    .product-price-box { background-color: var(--primary-light); padding: 16px 20px; border-radius: 4px; margin-bottom: 20px; }
+    .product-price-box .price-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+    .product-price-box .current-price { font-size: 28px; color: var(--primary); font-weight: 700; }
+    .product-price-box .current-price .yuan { font-size: 16px; margin-right: 4px; }
+    .product-price-box .original-price { font-size: 14px; color: var(--text-placeholder); text-decoration: line-through; margin-left: 12px; }
+    .spec-group { margin-bottom: 20px; }
+    .spec-group .spec-label { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 10px; }
+    .spec-group .spec-label .selected-val { color: var(--primary); font-weight: 400; margin-left: 8px; }
+    .spec-options { display: flex; flex-wrap: wrap; gap: 10px; }
+    .spec-option { padding: 8px 16px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; color: var(--text); cursor: pointer; transition: all 0.2s; background-color: var(--bg-white); }
+    .spec-option:hover:not(.disabled) { border-color: var(--primary); color: var(--primary); }
+    .spec-option.active { border-color: var(--primary); color: var(--primary); background-color: var(--primary-light); font-weight: 500; }
+    .spec-option.disabled { color: var(--text-tertiary); background-color: var(--bg); border-color: var(--border-light); cursor: not-allowed; }
+    .quantity-row { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+    .quantity-row .qty-label { font-size: 13px; color: var(--text); }
+    .stock-tip { font-size: 12px; color: var(--text-tertiary); }
+    .action-buttons { display: flex; gap: 12px; }
+    .btn-add-cart { flex: 1; height: 44px; background-color: var(--primary); color: #fff; font-size: 15px; font-weight: 500; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
+    .btn-add-cart:hover:not(:disabled) { background-color: var(--primary-hover); box-shadow: 0 4px 12px rgba(30,158,150,0.3); }
+    .btn-add-cart:disabled { background-color: var(--primary-disabled); cursor: not-allowed; }
+    .btn-buy-now { flex: 1; height: 44px; background-color: var(--bg-white); border: 1px solid var(--primary); color: var(--primary); font-size: 15px; font-weight: 500; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
+    .btn-buy-now:hover:not(:disabled) { background-color: var(--primary-light); }
+    .btn-buy-now:disabled { color: var(--text-tertiary); border-color: var(--border); cursor: not-allowed; }
+    .service-tags { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px; font-size: 11px; color: var(--text-secondary); }
+    .service-tags span { display: flex; align-items: center; gap: 4px; }
+    /* 详情标签页 */
+    .detail-tabs { background-color: var(--bg-white); }
+    .detail-tab-bar { display: flex; border-bottom: 1px solid var(--border); position: sticky; top: 131px; background-color: var(--bg-white); z-index: 50; }
+    .detail-tab { padding: 14px 32px; font-size: 14px; color: var(--text-secondary); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; }
+    .detail-tab:hover { color: var(--primary); }
+    .detail-tab.active { color: var(--primary); font-weight: 700; border-bottom-color: var(--primary); }
+    .detail-tab-content { padding: 32px; }
+    .detail-section { display: none; }
+    .detail-section.active { display: block; }
+    .detail-section h3 { font-size: 18px; font-weight: 700; margin-bottom: 16px; color: var(--text); }
+    .detail-section p { font-size: 14px; color: var(--text-secondary); line-height: 1.8; margin-bottom: 12px; }
+    .intro-rich img { max-width: 100%; }
+    .rate-summary { display: flex; align-items: baseline; gap: 16px; margin-bottom: 8px; }
+    .rate-summary .rate-num { font-size: 28px; color: #FFB300; font-weight: 700; }
+    .rate-summary .rate-text { font-size: 13px; color: var(--text-tertiary); }
+    .review-item { padding: 16px 0; border-bottom: 1px solid var(--border-light); }
+    .review-item:last-child { border-bottom: none; }
+    .review-user { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .review-avatar { width: 32px; height: 32px; border-radius: 50%; background-color: var(--primary-light); display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--primary); font-weight: 700; }
+    .review-name { font-size: 13px; color: var(--text); }
+    .review-stars { color: #FFB300; font-size: 12px; }
+    .review-text { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+    .review-imgs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .review-imgs img { width: 72px; height: 72px; object-fit: cover; border-radius: 4px; }
+    .review-reply { margin-top: 8px; padding: 8px 12px; background-color: var(--bg); font-size: 12px; color: var(--text-secondary); border-radius: 4px; }
+    .review-date { font-size: 11px; color: var(--text-tertiary); margin-top: 6px; }
+    .review-more { text-align: center; padding-top: 14px; }
+    .review-more button { padding: 6px 24px; border: 1px solid var(--border); border-radius: 20px; font-size: 13px; color: var(--text-secondary); cursor: pointer; background: var(--bg-white); }
+    /* 推荐商品 */
+    .recommend-section { margin-top: 24px; }
+    .recommend-section h3 { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+    .recommend-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  </style>
+</head>
+<body>
+
+<!-- 顶部黑色通栏 -->
+<div class="top-bar">
+  <div class="container">
+    <div class="top-bar-left">
+      <a href="index.html">商城首页</a><span class="sep">|</span>
+      <a href="search.html">全部商品</a><span class="sep">|</span>
+      <a href="service.html">服务中心</a><span class="sep">|</span>
+      <a href="orders.html">我的订单</a>
+    </div>
+    <div class="top-bar-right">
+      <a href="login.html" class="js-login">登录</a>
+      <a href="register.html" class="js-register">注册</a>
+      <a href="service.html" class="js-message hidden">消息通知</a>
+      <a href="#" class="js-logout hidden">退出</a>
+      <a href="cart.html" class="cart-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+        购物车(<span class="cart-count">0</span>)
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- 主导航栏 -->
+<header class="main-header">
+  <div class="container">
+    <a href="index.html" class="logo"><img src="images/logo.png" alt="随心商城"></a>
+    <nav class="main-nav">
+      <a href="search.html">手机</a>
+      <a href="search.html">智能手机</a>
+      <a href="search.html">电视</a>
+      <a href="search.html">笔记本</a>
+      <a href="search.html">平板</a>
+      <a href="search.html">家电</a>
+      <a href="search.html">路由器</a>
+      <a href="service.html">服务中心</a>
+    </nav>
+    <div class="search-box">
+      <input type="text" class="search-input" placeholder="搜索商品">
+      <button class="search-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="container detail-main">
+  <!-- 面包屑 -->
+  <div class="breadcrumb">
+    <a href="index.html">首页</a><span class="sep">/</span>
+    <a href="search.html">全部商品</a><span class="sep">/</span>
+    <span class="current" id="jsCrumb">商品详情</span>
+  </div>
+
+  <!-- 商品信息区 -->
+  <div class="product-section" id="jsProductBox">
+    <div class="page-loading">正在加载商品详情…</div>
+  </div>
+
+  <!-- 详情标签页 -->
+  <div class="detail-tabs" style="display:none;" id="jsTabsWrap">
+    <div class="detail-tab-bar" id="jsTabBar"></div>
+    <div class="detail-tab-content">
+      <div class="detail-section" id="tab-intro"></div>
+      <div class="detail-section" id="tab-review"></div>
+      <div class="detail-section" id="tab-service"></div>
+    </div>
+  </div>
+
+  <!-- 猜你喜欢 -->
+  <div class="recommend-section" id="jsRecommendWrap" style="display:none;">
+    <h3>猜你喜欢</h3>
+    <div class="recommend-grid" id="jsRecommend"></div>
+  </div>
+</div>
+
+<!-- 页脚 -->
+<div class="footer-copyright" style="margin-top:0;">
+  <div class="container">
+    <div class="footer-logo"><img src="images/logo.png" alt="随心商城"></div>
+    <div class="footer-info">
+      <div class="footer-links-row">
+        <a href="index.html">商城首页</a>
+        <span class="sep">|</span>
+        <a href="service.html">服务中心</a>
+        <span class="sep">|</span>
+        <a href="orders.html">我的订单</a>
+        <span class="sep">|</span>
+        <a href="after-sale.html">售后中心</a>
+        <span class="sep">|</span>
+        <a href="coupons.html">我的优惠券</a>
+      </div>
+      <div class="footer-record">© 2026 shop-open · 开源演示项目，非真实商户</div>
+    </div>
+  </div>
+  <div class="footer-slogan">随心选好物，品质看得见</div>
+</div>
+
+<script src="js/ui.js"></script>
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/main.js"></script>
+<script src="js/page-detail.js"></script>
+<script src="js/live.js"></script>
+</body>
+</html>

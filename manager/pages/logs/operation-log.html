@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>操作日志 - 商城后台管理系统</title>
+  <link rel="stylesheet" href="../../css/common.css?v=20260905a">
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main-wrapper">
+      <header class="header" id="header"></header>
+      <main class="content">
+        <div class="page-header">
+          <div><h1 class="page-title">操作日志</h1><p class="page-desc">记录管理员所有关键操作，支持筛选和导出</p></div>
+          <button class="btn btn-secondary" id="btnExport" onclick="exportLogs()">📥 导出日志</button>
+        </div>
+        <div class="filter-bar">
+          <div class="filter-row">
+            <div class="filter-item"><label>操作人</label><input type="text" id="fAdmin" class="form-control" placeholder="账号/姓名"></div>
+            <div class="filter-item"><label>模块</label><select id="fModule" class="form-control">
+              <option value="">全部模块</option>
+              <option value="goods">商品管理</option>
+              <option value="order">订单管理</option>
+              <option value="member">会员管理</option>
+              <option value="marketing">营销管理</option>
+              <option value="content">内容管理</option>
+              <option value="settings">系统设置</option>
+              <option value="permission">权限管理</option>
+              <option value="dashboard">仪表盘</option>
+            </select></div>
+            <div class="filter-item"><label>操作类型</label><select id="fAction" class="form-control">
+              <option value="">全部</option>
+              <option value="1">登录</option>
+              <option value="2">新增</option>
+              <option value="3">编辑</option>
+              <option value="4">删除</option>
+              <option value="5">导出</option>
+              <option value="6">登出</option>
+              <option value="7">审核</option>
+            </select></div>
+            <div class="filter-item"><label>操作时间</label><div style="display:flex;gap:4px;align-items:center;"><input type="date" id="fStart" class="form-control" style="width:130px;"><span style="color:var(--text-muted);">-</span><input type="date" id="fEnd" class="form-control" style="width:130px;"></div></div>
+            <div class="filter-actions"><button class="btn btn-primary" onclick="resetFilters()">重置</button></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body no-padding">
+            <div class="table-wrapper">
+              <table class="table">
+                <thead><tr><th>日志ID</th><th>操作人</th><th>模块</th><th>操作类型</th><th>操作描述</th><th>操作对象</th><th>IP地址</th><th>操作时间</th></tr></thead>
+                <tbody id="logBody"></tbody>
+              </table>
+            </div>
+            <div class="pagination" id="logPagination"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../js/common.js?v=20260905a"></script>
+  <script>
+    const API = AdminUI.API_BASE;
+    const SIZE = 10;
+    let PAGE = 1;
+    const MODULE_BADGE = { goods: 'primary', order: 'warning', member: 'info', marketing: 'purple', content: 'secondary', settings: 'default', permission: 'danger', dashboard: 'success' };
+    const ACTION_BADGE = { 1: 'info', 2: 'success', 3: 'warning', 4: 'danger', 5: 'purple', 6: 'secondary', 7: 'primary' };
+    const esc = AdminUI.escHtml;
+
+    function qs() {
+      const f = {
+        admin_name: document.getElementById('fAdmin').value.trim(),
+        module: document.getElementById('fModule').value,
+        action_type: document.getElementById('fAction').value,
+        start_date: document.getElementById('fStart').value,
+        end_date: document.getElementById('fEnd').value
+      };
+      const params = new URLSearchParams();
+      params.set('page', PAGE);
+      params.set('page_size', SIZE);
+      Object.keys(f).forEach(function (k) { if (f[k]) params.set(k, f[k]); });
+      return params.toString();
+    }
+
+    async function loadData(page) {
+      PAGE = page || 1;
+      const data = await AdminUI.get(API + '/admin-logs?' + qs());
+      const rows = data.list || [];
+      document.getElementById('logBody').innerHTML = rows.map(function (r) {
+        return '<tr>' +
+          '<td style="font-family:monospace;font-size:12px;">' + r.id + '</td>' +
+          '<td>' + esc(r.adminName) + '</td>' +
+          '<td><span class="badge-tag ' + (MODULE_BADGE[r.module] || 'default') + '">' + esc(r.moduleText) + '</span></td>' +
+          '<td><span class="badge-tag ' + (ACTION_BADGE[r.actionType] || 'default') + '">' + esc(r.actionTypeText) + '</span></td>' +
+          '<td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;" title="' + esc(r.summary) + '">' + esc(r.summary) + '</td>' +
+          '<td style="font-family:monospace;font-size:12px;">' + esc(r.target) + '</td>' +
+          '<td style="font-family:monospace;font-size:12px;">' + esc(r.ip) + '</td>' +
+          '<td style="font-size:12px;color:var(--text-secondary);white-space:nowrap;">' + esc(AdminUI.fmtTime(r.createdAt)) + '</td>' +
+          '</tr>';
+      }).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:40px 0;">暂无操作日志</td></tr>';
+      const total = data.total || 0;
+      AdminUI.renderPagination('logPagination', PAGE, Math.max(1, Math.ceil(total / SIZE)), total, SIZE);
+    }
+
+    function scheduleSearch() {
+      loadData(1);
+    }
+
+    let debounceTimer = null;
+    function resetFilters() {
+      document.querySelectorAll('.filter-bar input, .filter-bar select').forEach(function (el) { el.value = ''; });
+      clearTimeout(debounceTimer);
+      loadData(1);
+    }
+
+    async function exportLogs() {
+      const cur = qs();
+      AdminUI.download(API + '/admin-logs/export?' + cur.replace(/page=[^&]*&page_size=[^&]*&?/, ''), 'admin_logs.csv');
+    }
+
+    (async function () {
+      const ok = await AdminUI.initPage({ key: 'logs', breadcrumb: ['系统', '操作日志'], need: ['logs:list'] });
+      if (!ok) return;
+      if (!AdminUI.can('logs:export')) document.getElementById('btnExport').style.display = 'none';
+      ['fAdmin', 'fModule', 'fAction', 'fStart', 'fEnd'].forEach(function (id) {
+        const el = document.getElementById(id);
+        el.addEventListener('change', scheduleSearch);
+        if (el.tagName === 'INPUT' && el.type === 'text') {
+          el.addEventListener('input', function () {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(scheduleSearch, 400);
+          });
+        }
+      });
+      loadData(1);
+    })();
+  </script>
+</body>
+</html>

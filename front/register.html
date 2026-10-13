@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <link rel="icon" type="image/png" href="images/logo.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>注册 - 随心商城</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .auth-page { min-height: calc(100vh - 70px); display: flex; align-items: center; justify-content: center; padding: 40px 0; background-color: var(--bg); }
+    .register-card { width: 420px; background-color: var(--bg-white); border-radius: 8px; padding: 36px; box-shadow: 0 4px 24px var(--shadow); }
+    .register-card h3 { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 6px; }
+    .register-card .form-subtitle { font-size: 12px; color: var(--text-tertiary); text-align: center; margin-bottom: 24px; }
+    .form-group { margin-bottom: 16px; }
+    .code-group { display: flex; gap: 8px; }
+    .code-group .form-input { flex: 1; }
+    .send-code-btn { width: 110px; height: 40px; background-color: var(--bg); border: 1px solid var(--border); border-radius: 4px; font-size: 12px; color: var(--primary); cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: all 0.2s; }
+    .send-code-btn:hover:not(:disabled) { border-color: var(--primary); }
+    .send-code-btn:disabled { color: var(--text-placeholder); cursor: not-allowed; }
+    .password-wrap { position: relative; }
+    .password-toggle { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 14px; color: var(--text-tertiary); }
+    .agree-row { margin: 16px 0 20px; }
+    .auth-submit { width: 100%; height: 40px; background-color: var(--primary); color: #fff; font-size: 14px; font-weight: 500; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
+    .auth-submit:hover:not(.disabled) { background-color: var(--primary-hover); box-shadow: 0 4px 12px rgba(30,158,150,0.3); }
+    .auth-submit.disabled { background-color: var(--primary-disabled); cursor: not-allowed; box-shadow: none; }
+    .auth-footer-link { text-align: center; margin-top: 16px; font-size: 12px; color: var(--text-secondary); }
+    .auth-footer-link a { color: var(--primary); }
+    .page-footer { text-align: center; padding: 20px 0; font-size: 11px; color: var(--text-tertiary); }
+    .page-footer a { color: var(--text-tertiary); margin: 0 8px; }
+  </style>
+</head>
+<body>
+
+<!-- 简化版导航栏 -->
+<header class="simple-header">
+  <div class="container">
+    <a href="index.html" class="logo"><img src="images/logo.png" alt="随心商城"></a>
+    <span class="page-title">注册</span>
+    <span class="page-tip">创建随心商城账号</span>
+    <div class="header-right">
+      <a href="index.html">返回首页</a>
+    </div>
+  </div>
+</header>
+
+<div class="auth-page">
+  <div class="register-card">
+    <h3>创建随心商城账号</h3>
+    <p class="form-subtitle">注册即享随心商城会员权益</p>
+    <form id="registerForm">
+      <div class="form-group">
+        <label class="form-label">手机号</label>
+        <input type="tel" id="phoneInput" class="form-input phone-input" placeholder="请输入手机号" maxlength="11" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">验证码</label>
+        <div class="code-group">
+          <input type="text" id="codeInput" class="form-input" placeholder="请输入验证码" maxlength="6" required>
+          <button type="button" id="sendCodeBtn" class="send-code-btn">获取验证码</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">设置密码</label>
+        <div class="password-wrap">
+          <input type="password" id="passwordInput" class="form-input" placeholder="8-20位，包含字母和数字" required>
+          <span class="password-toggle">👁</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">确认密码</label>
+        <div class="password-wrap">
+          <input type="password" id="confirmInput" class="form-input" placeholder="请再次输入密码" required>
+          <span class="password-toggle">👁</span>
+        </div>
+      </div>
+      <div class="agree-row">
+        <label class="checkbox">
+          <input type="checkbox" id="agree-checkbox">
+          <span class="checkbox-box"></span>
+          <span class="checkbox-text">我已阅读并同意 <a href="service.html">《服务说明》</a>（演示站点，无真实用户协议）</span>
+        </label>
+      </div>
+      <button type="submit" class="auth-submit disabled" disabled>注 册</button>
+    </form>
+    <div class="auth-footer-link">
+      已有账号？<a href="login.html" id="toLoginLink">立即登录</a>
+    </div>
+  </div>
+</div>
+
+<div class="page-footer">
+  <a href="service.html">服务中心</a>|<a href="orders.html">我的订单</a>|<a href="index.html">商城首页</a>
+  <br>© 2026 shop-open · 开源演示项目，非真实商户
+</div>
+
+<script src="js/ui.js"></script>
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/main.js"></script>
+<script>
+/* 注册页：验证码 60s + /auth/register（spec §8.14 / §5.1） */
+(function () {
+  var form = document.getElementById('registerForm');
+  if (!form) return;
+  var phone = document.getElementById('phoneInput');
+  var code = document.getElementById('codeInput');
+  var pwd = document.getElementById('passwordInput');
+  var confirm = document.getElementById('confirmInput');
+  var sendBtn = document.getElementById('sendCodeBtn');
+  var btn = form.querySelector('.auth-submit');
+
+  function redirectParam() {
+    var target = new URLSearchParams(location.search).get('redirect');
+    return target ? '?redirect=' + encodeURIComponent(target) : '';
+  }
+
+  var loginLink = document.getElementById('toLoginLink');
+  if (loginLink) loginLink.href = 'login.html' + redirectParam();
+
+  sendBtn.addEventListener('click', function () {
+    var phoneVal = (phone.value || '').trim();
+    if (!/^1\d{10}$/.test(phoneVal)) {
+      window.ShopUI.toast('请输入正确的手机号', 'error');
+      return;
+    }
+    var count = 60;
+    sendBtn.disabled = true;
+    sendBtn.textContent = count + 's后重发';
+    var timer = setInterval(function () {
+      count--;
+      if (count <= 0) {
+        clearInterval(timer);
+        sendBtn.disabled = false;
+        sendBtn.textContent = '获取验证码';
+      } else {
+        sendBtn.textContent = count + 's后重发';
+      }
+    }, 1000);
+    window.ShopApi.sendCode(phoneVal).then(function (res) {
+      var code = res && res.devCode;
+      window.ShopUI.toast(
+        code
+          ? '演示通道：未真实发送短信，本次验证码 ' + code
+          : '验证码已发送',
+        'success', 4000
+      );
+    }).catch(function () {
+      clearInterval(timer);
+      sendBtn.disabled = false;
+      sendBtn.textContent = '获取验证码';
+    });
+  });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var phoneVal = (phone.value || '').trim();
+    var codeVal = (code.value || '').trim();
+    var pwdVal = pwd.value || '';
+    var confirmVal = confirm.value || '';
+    if (!/^1\d{10}$/.test(phoneVal)) return window.ShopUI.toast('请输入正确的手机号', 'error');
+    if (!/^\d{6}$/.test(codeVal)) return window.ShopUI.toast('请输入6位验证码', 'error');
+    if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,20}$/.test(pwdVal)) {
+      return window.ShopUI.toast('密码需8-20位且同时包含字母和数字', 'error', 3000);
+    }
+    if (pwdVal !== confirmVal) return window.ShopUI.toast('两次输入的密码不一致', 'error');
+    if (!document.getElementById('agree-checkbox').checked) {
+      return window.ShopUI.toast('请先阅读并同意服务说明', 'error');
+    }
+    window.ShopUI.busy(btn, function () {
+      return window.ShopApi.register(phoneVal, codeVal, pwdVal).then(function () {
+        window.ShopUI.toast('注册成功，请登录', 'success');
+        window.location.href = 'login.html' + redirectParam();
+      });
+    }).catch(function () { /* 错误已由请求层 toast */ });
+  });
+})();
+</script>
+<script src="js/live.js"></script>
+</body>
+</html>

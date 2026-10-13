@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>物流公司 - 商城后台管理系统</title>
+  <link rel="stylesheet" href="../../css/common.css?v=20260904e">
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main-wrapper">
+      <header class="header" id="header"></header>
+      <main class="content">
+        <div class="page-header">
+          <div><h1 class="page-title">物流公司</h1><p class="page-desc">维护发货可用的快递公司列表</p></div>
+          <button class="btn btn-primary" id="btnAddExpress" onclick="openAdd()">＋ 新增物流公司</button>
+        </div>
+        <div class="card">
+          <div class="card-body no-padding">
+            <div class="table-wrapper">
+              <table class="table">
+                <thead><tr><th>公司名称</th><th>公司编码</th><th>状态</th><th>创建时间</th></tr></thead>
+                <tbody id="expressBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="expressModal">
+    <div class="modal">
+      <div class="modal-header"><h3 class="modal-title">新增物流公司</h3><button class="modal-close" data-close-modal="expressModal">✕</button></div>
+      <div class="modal-body">
+        <div class="form-group"><label class="form-label">公司名称 <span class="required">*</span></label><input type="text" id="eName" class="form-control" placeholder="例如：速达速运"></div>
+        <div class="form-group"><label class="form-label">公司编码 <span class="required">*</span></label><input type="text" id="eCode" class="form-control" placeholder="例如：SD，用于系统识别"></div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-close-modal="expressModal">取消</button><button class="btn btn-primary" onclick="saveExpress()">确认新增</button></div>
+    </div>
+  </div>
+
+  <script src="../../js/common.js?v=20260904e"></script>
+  <script>
+    const API = AdminUI.API_BASE;
+
+    function esc(v) { return AdminUI.escHtml(v === null || v === undefined ? '' : String(v)); }
+
+    function render(list) {
+      const rows = list.map(function (x) {
+        const st = x.status === 1
+          ? '<span class="badge-tag success">启用</span>'
+          : '<span class="badge-tag default">停用</span>';
+        return '<tr>' +
+          '<td style="font-weight:500;">' + esc(x.name) + '</td>' +
+          '<td style="font-family:monospace;color:var(--text-secondary);">' + esc(x.code) + '</td>' +
+          '<td>' + st + '</td>' +
+          '<td style="font-size:12px;color:var(--text-secondary);">' + AdminUI.fmtTime(x.createdAt) + '</td>' +
+          '</tr>';
+      }).join('');
+      document.getElementById('expressBody').innerHTML = rows || '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:40px 0;">暂无数据</td></tr>';
+    }
+
+    async function load() {
+      const data = await AdminUI.get(API + '/express-companies');
+      if (data) render(data);
+    }
+
+    function openAdd() {
+      document.getElementById('eName').value = '';
+      document.getElementById('eCode').value = '';
+      AdminUI.openModal('expressModal');
+    }
+
+    async function saveExpress() {
+      const name = document.getElementById('eName').value.trim();
+      const code = document.getElementById('eCode').value.trim().toUpperCase();
+      if (!name || !code) { AdminUI.showToast('请填写公司名称与编码', 'warning'); return; }
+      try {
+        await AdminUI.post(API + '/express-companies', { name: name, code: code });
+        AdminUI.closeModal('expressModal');
+        AdminUI.showToast('新增成功', 'success');
+        await load();
+      } catch (e) { }
+    }
+
+    (async function () {
+      const ok = await AdminUI.initPage({ key: 'logistics', breadcrumb: ['订单管理', '物流公司'], need: ['order:list'] });
+      if (!ok) return;
+      if (!AdminUI.can('order:add')) document.getElementById('btnAddExpress').style.display = 'none';
+      await load();
+    })();
+  </script>
+</body>
+</html>

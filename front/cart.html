@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <link rel="icon" type="image/png" href="images/logo.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>购物车 - 随心商城</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .cart-page { padding: 20px 0 40px; min-height: 500px; }
+    .cart-table-wrap { background-color: var(--bg-white); border-radius: 4px; overflow: hidden; }
+    .cart-table { width: 100%; border-collapse: collapse; }
+    .cart-table thead th { background-color: var(--bg); padding: 12px 16px; font-size: 13px; font-weight: 500; color: var(--text-secondary); text-align: left; border-bottom: 1px solid var(--border); }
+    .cart-table tbody td { padding: 16px; border-bottom: 1px solid var(--border-light); vertical-align: middle; }
+    .cart-table .col-check { width: 50px; text-align: center; }
+    .cart-table .col-product { width: 40%; }
+    .cart-table .col-price { width: 12%; }
+    .cart-table .col-quantity { width: 15%; }
+    .cart-table .col-subtotal { width: 12%; }
+    .cart-table .col-action { width: 8%; text-align: center; }
+    .cart-thumb { width: 80px; height: 80px; object-fit: contain; float: left; margin-right: 12px; background-color: var(--bg); border-radius: 4px; }
+    .cart-name { font-size: 13px; color: var(--text); line-height: 1.5; display: block; overflow: hidden; }
+    .cart-name:hover { color: var(--primary); }
+    .delete-btn { display: inline-block; width: 24px; height: 24px; line-height: 22px; text-align: center; border-radius: 50%; color: var(--text-tertiary); font-size: 16px; cursor: pointer; transition: all 0.2s; }
+    .delete-btn:hover { background-color: var(--danger); color: #fff; }
+    /* 结算栏 */
+    .cart-footer { background-color: var(--bg-white); margin-top: 12px; padding: 16px 20px; display: flex; align-items: center; border-radius: 4px; }
+    .cart-footer .select-all { display: flex; align-items: center; font-size: 13px; color: var(--text); }
+    .cart-footer .footer-right { margin-left: auto; display: flex; align-items: center; gap: 24px; }
+    .cart-footer .selected-info { font-size: 13px; color: var(--text-secondary); }
+    .cart-footer .selected-info .selected-count { color: var(--primary); font-weight: 700; }
+    .cart-footer .total-box { text-align: right; }
+    .cart-footer .total-label { font-size: 12px; color: var(--text-secondary); }
+    .cart-footer .cart-total { font-size: 24px; color: var(--primary); font-weight: 700; }
+    .cart-footer .cart-total .yuan { font-size: 14px; }
+    .checkout-btn { width: 140px; height: 44px; background-color: var(--primary); color: #fff; font-size: 15px; font-weight: 500; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
+    .checkout-btn:hover { background-color: var(--primary-hover); box-shadow: 0 4px 12px rgba(30,158,150,0.3); }
+    /* 行内信息 / 游客提示 */
+    .cart-info { overflow: hidden; }
+    .cart-spec { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+    .oos-tag { display: inline-block; margin-top: 4px; padding: 1px 6px; border-radius: 2px; background: var(--danger); color: #fff; font-size: 11px; }
+    .cart-tip { display: none; margin-bottom: 12px; padding: 10px 14px; background: #fff7ed; border: 1px solid #ffd9b3; border-radius: 4px; font-size: 13px; color: var(--text-secondary); }
+    .cart-tip a { color: var(--primary); text-decoration: underline; }
+    /* 空购物车 */
+    .cart-empty { display: none; text-align: center; padding: 80px 0; background-color: var(--bg-white); border-radius: 4px; }
+    .cart-empty .empty-icon { font-size: 64px; color: var(--text-placeholder); margin-bottom: 16px; }
+    .cart-empty .empty-text { font-size: 16px; color: var(--text-secondary); margin-bottom: 24px; }
+    .cart-empty .empty-btn { display: inline-block; padding: 10px 32px; background-color: var(--primary); color: #fff; font-size: 14px; border-radius: 4px; cursor: pointer; }
+    .cart-empty .empty-btn:hover { background-color: var(--primary-hover); color: #fff; }
+  </style>
+</head>
+<body>
+
+<!-- 简化版导航栏 -->
+<header class="simple-header">
+  <div class="container">
+    <a href="index.html" class="logo"><img src="images/logo.png" alt="随心商城"></a>
+    <span class="page-title">我的购物车</span>
+    <span class="page-tip">温馨提示：商品库存以最终下单为准，请尽快结算</span>
+    <div class="header-right">
+      <a href="index.html">继续购物</a>
+      <span class="sep">|</span>
+      <a href="orders.html">我的订单</a>
+    </div>
+  </div>
+</header>
+
+<div class="container cart-page">
+  <!-- 空购物车 -->
+  <div class="cart-empty" id="cartEmpty">
+    <div class="empty-icon">🛒</div>
+    <div class="empty-text">购物车还是空的，快去挑选心仪的商品吧~</div>
+    <a href="index.html" class="empty-btn">去购物</a>
+  </div>
+
+  <!-- 游客购物车提示 -->
+  <div class="cart-tip" id="cartTip"></div>
+
+  <div id="cartMain">
+  <!-- 购物车表格 -->
+  <div class="cart-table-wrap">
+    <table class="cart-table" id="cartTable">
+      <thead>
+        <tr>
+          <th class="col-check">
+            <label class="checkbox">
+              <input type="checkbox" class="select-all-checkbox" checked>
+              <span class="checkbox-box"></span>
+            </label>
+          </th>
+          <th class="col-product">商品信息</th>
+          <th class="col-price">单价</th>
+          <th class="col-quantity">数量</th>
+          <th class="col-subtotal">小计</th>
+          <th class="col-action">操作</th>
+        </tr>
+      </thead>
+      <tbody id="cartBody">
+        <!-- 由JS渲染 -->
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 结算栏 -->
+  <div class="cart-footer">
+    <label class="checkbox select-all">
+      <input type="checkbox" class="select-all-checkbox" checked>
+      <span class="checkbox-box"></span>
+      <span class="checkbox-text" style="font-size:13px;color:var(--text);">全选</span>
+    </label>
+    <div class="footer-right">
+      <div class="selected-info">已选择 <span class="selected-count">0</span> 件商品</div>
+      <div class="total-box">
+        <div class="total-label">合计（不含运费）</div>
+        <div class="cart-total"><span class="yuan">¥</span><span class="cart-total-num">0</span></div>
+      </div>
+      <button class="checkout-btn">去结算</button>
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- 页脚 -->
+<div class="footer-copyright">
+  <div class="container">
+    <div class="footer-logo"><img src="images/logo.png" alt="随心商城"></div>
+    <div class="footer-info">
+      <div class="footer-links-row">
+        <a href="index.html">商城首页</a>
+        <span class="sep">|</span>
+        <a href="service.html">服务中心</a>
+        <span class="sep">|</span>
+        <a href="orders.html">我的订单</a>
+        <span class="sep">|</span>
+        <a href="after-sale.html">售后中心</a>
+        <span class="sep">|</span>
+        <a href="coupons.html">我的优惠券</a>
+      </div>
+      <div class="footer-record">© 2026 shop-open · 开源演示项目，非真实商户</div>
+    </div>
+  </div>
+  <div class="footer-slogan">随心选好物，品质看得见</div>
+</div>
+
+<script src="js/ui.js"></script>
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/page-cart.js"></script>
+<script src="js/live.js"></script>
+</body>
+</html>

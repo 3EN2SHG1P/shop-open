@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <link rel="icon" type="image/png" href="images/logo.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>服务中心 - 随心商城</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .svc-page { padding: 20px 0 40px; min-height: 500px; }
+    .svc-panel { background-color: var(--bg-white); border-radius: var(--radius); padding: 24px; margin-bottom: 16px; }
+    .svc-panel h3 { font-size: 15px; color: var(--text); margin-bottom: 16px; }
+    .svc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .svc-card { display: block; border: 1px solid var(--border-light); border-radius: var(--radius); padding: 18px 16px; text-decoration: none; transition: box-shadow .2s var(--ease-smooth), border-color .2s var(--ease-smooth); }
+    .svc-card:hover { border-color: var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    .svc-card .svc-title { font-size: 14px; color: var(--text); font-weight: 500; margin-bottom: 6px; }
+    .svc-card .svc-desc { font-size: 12px; color: var(--text-tertiary); line-height: 1.6; }
+    .svc-faq { border-top: 1px solid var(--border-light); padding: 14px 0; }
+    .svc-faq:first-of-type { border-top: none; }
+    .svc-q { font-size: 13px; color: var(--text); font-weight: 500; margin-bottom: 6px; }
+    .svc-a { font-size: 12px; color: var(--text-tertiary); line-height: 1.8; }
+    @media (max-width: 900px) { .svc-grid { grid-template-columns: repeat(2, 1fr); } }
+  </style>
+</head>
+<body>
+
+<header class="simple-header">
+  <div class="container">
+    <a href="index.html" class="logo"><img src="images/logo.png" alt="随心商城"></a>
+    <span class="page-title">服务中心</span>
+    <div class="header-right">
+      <a href="index.html">返回首页</a>
+      <span class="sep">|</span>
+      <a href="orders.html">我的订单</a>
+    </div>
+  </div>
+</header>
+
+<div class="container svc-page">
+  <div class="svc-panel">
+    <h3>自助服务</h3>
+    <div class="svc-grid">
+      <a class="svc-card" href="after-sale.html">
+        <div class="svc-title">申请售后</div>
+        <div class="svc-desc">退款、退货退款申请与进度查询</div>
+      </a>
+      <a class="svc-card" href="orders.html">
+        <div class="svc-title">我的订单</div>
+        <div class="svc-desc">订单状态、物流与确认收货</div>
+      </a>
+      <a class="svc-card" href="address.html">
+        <div class="svc-title">地址管理</div>
+        <div class="svc-desc">收货地址的新增、编辑与删除</div>
+      </a>
+      <a class="svc-card" href="coupons.html">
+        <div class="svc-title">我的优惠券</div>
+        <div class="svc-desc">领券中心与已领取优惠券</div>
+      </a>
+      <a class="svc-card" href="points.html">
+        <div class="svc-title">我的积分</div>
+        <div class="svc-desc">积分余额、等级折扣与流水</div>
+      </a>
+      <a class="svc-card" href="cart.html">
+        <div class="svc-title">购物车</div>
+        <div class="svc-desc">待结算商品与数量调整</div>
+      </a>
+    </div>
+  </div>
+
+  <div class="svc-panel">
+    <h3>常见问题</h3>
+    <p style="color:#999;font-size:12px;margin:8px 0 16px;">以下为演示站点的示例服务说明，不代表任何真实商家承诺。</p>
+    <div class="svc-faq">
+      <div class="svc-q">多久可以发货？</div>
+      <div class="svc-a">正常情况下订单付款后 48 小时内发货，预售商品以商品详情页标注的发货时间为准。</div>
+    </div>
+    <div class="svc-faq">
+      <div class="svc-q">如何申请退货？</div>
+      <div class="svc-a">在「申请售后」中提交退货申请并填写原因，由客服在售后单内回复处理意见；演示环境不会产生真实退款，也不会自动通过退货。</div>
+    </div>
+    <div class="svc-faq">
+      <div class="svc-q">运费怎么计算？</div>
+      <div class="svc-a">按商品绑定的运费模板计算，订单满足模板中设定的包邮条件时免运费，结算页会实时展示运费金额。</div>
+    </div>
+    <div class="svc-faq">
+      <div class="svc-q">优惠券和积分能同时使用吗？</div>
+      <div class="svc-a">可以。结算页可同时选择可用优惠券与使用积分抵扣，系统会在服务端重新计算应付金额。</div>
+    </div>
+    <div class="svc-faq">
+      <div class="svc-q">如何联系客服？</div>
+      <div class="svc-a">服务时间 9:00-21:00，可在「申请售后」页面提交问题，客服会在售后单中回复处理意见。</div>
+    </div>
+  </div>
+</div>
+
+<div class="footer-copyright">
+  <div class="container">
+    <div class="footer-logo"><img src="images/logo.png" alt="随心商城"></div>
+    <div class="footer-info">
+      <div class="footer-links-row">
+        <a href="index.html">商城首页</a><span class="sep">|</span>
+        <a href="service.html">服务中心</a><span class="sep">|</span>
+        <a href="orders.html">我的订单</a><span class="sep">|</span>
+        <a href="after-sale.html">售后中心</a><span class="sep">|</span>
+        <a href="coupons.html">我的优惠券</a>
+      </div>
+      <div class="footer-record">© 2026 shop-open · 开源演示项目，非真实商户</div>
+    </div>
+  </div>
+  <div class="footer-slogan">随心选好物，品质看得见</div>
+</div>
+
+<script src="js/ui.js"></script>
+<script src="js/live.js"></script>
+</body>
+</html>

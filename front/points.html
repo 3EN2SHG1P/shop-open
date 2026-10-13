@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <link rel="icon" type="image/png" href="images/logo.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的积分 - 随心商城</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .pt-page { padding: 20px 0 40px; min-height: 500px; }
+    .pt-banner { background: linear-gradient(135deg, var(--primary), #48C2BA); color: #fff; border-radius: 8px; padding: 28px 32px; margin-bottom: 16px; display: flex; align-items: center; }
+    .pt-banner .pt-main { font-size: 14px; opacity: 0.9; }
+    .pt-banner .pt-value { font-size: 40px; font-weight: 700; line-height: 1.1; margin: 6px 0; }
+    .pt-banner .pt-level { font-size: 13px; opacity: 0.95; }
+    .pt-banner .pt-rule { margin-left: auto; font-size: 12px; opacity: 0.92; max-width: 260px; line-height: 1.6; }
+    .pt-panel { background-color: var(--bg-white); border-radius: 6px; padding: 20px 24px; }
+    .pt-panel h3 { font-size: 15px; color: var(--text); margin-bottom: 14px; }
+    .pt-row { display: flex; padding: 12px 0; border-bottom: 1px solid var(--border-light); font-size: 13px; align-items: center; }
+    .pt-row:last-child { border-bottom: none; }
+    .pt-row .pt-reason { color: var(--text); flex: 1; }
+    .pt-row .pt-rel { color: var(--text-tertiary); font-size: 12px; margin-right: 12px; }
+    .pt-row .pt-time { color: var(--text-tertiary); font-size: 12px; width: 150px; text-align: right; }
+    .pt-row .pt-val { font-size: 15px; font-weight: 700; width: 90px; text-align: right; }
+    .pt-val.income { color: var(--success); }
+    .pt-val.outcome { color: var(--text-secondary); }
+    .pt-empty { text-align: center; padding: 50px 0; color: var(--text-secondary); }
+  </style>
+</head>
+<body>
+
+<header class="simple-header">
+  <div class="container">
+    <a href="index.html" class="logo"><img src="images/logo.png" alt="随心商城"></a>
+    <span class="page-title">我的积分</span>
+    <div class="header-right">
+      <a href="index.html">返回首页</a>
+      <span class="sep">|</span>
+      <a href="orders.html">我的订单</a>
+    </div>
+  </div>
+</header>
+
+<div class="container pt-page">
+  <div class="pt-banner" id="jsBanner"></div>
+  <div class="pt-panel">
+    <h3>积分流水</h3>
+    <div id="jsLogs"></div>
+    <div class="pagination" id="jsPager"></div>
+  </div>
+</div>
+
+<div class="footer-copyright">
+  <div class="container">
+    <div class="footer-logo"><img src="images/logo.png" alt="随心商城"></div>
+    <div class="footer-info">
+      <div class="footer-links-row">
+        <a href="index.html">商城首页</a>
+        <span class="sep">|</span>
+        <a href="service.html">服务中心</a>
+        <span class="sep">|</span>
+        <a href="orders.html">我的订单</a>
+        <span class="sep">|</span>
+        <a href="after-sale.html">售后中心</a>
+        <span class="sep">|</span>
+        <a href="coupons.html">我的优惠券</a>
+      </div>
+      <div class="footer-record">© 2026 shop-open · 开源演示项目，非真实商户</div>
+    </div>
+  </div>
+  <div class="footer-slogan">随心选好物，品质看得见</div>
+</div>
+
+<script src="js/ui.js"></script>
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/page-points.js"></script>
+<script src="js/live.js"></script>
+</body>
+</html>

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <link rel="icon" type="image/png" href="images/logo.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>订单支付 - 随心商城</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .payment-page { padding: 30px 0 40px; min-height: 500px; }
+    .payment-card { background-color: var(--bg-white); border-radius: 4px; padding: 32px; max-width: 700px; margin: 0 auto; }
+    .payment-header { text-align: center; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid var(--border-light); }
+    .payment-header .order-no { font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; }
+    .payment-header .order-no span { color: var(--text); font-weight: 500; }
+    .payment-header .pay-amount { font-size: 14px; color: var(--text-secondary); }
+    .payment-header .pay-amount .amount { font-size: 32px; color: var(--primary); font-weight: 700; }
+    .payment-header .pay-amount .amount .yuan { font-size: 16px; }
+    .payment-header .countdown { font-size: 12px; color: var(--text-tertiary); margin-top: 8px; }
+    .payment-header .countdown .payment-countdown { color: var(--text); font-weight: 500; }
+    .payment-methods-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 16px; }
+    .payment-method-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px; }
+    .pay-method { display: flex; align-items: center; padding: 16px 20px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; transition: all 0.2s; }
+    .pay-method:hover { border-color: var(--primary); }
+    .pay-method.active { border-color: var(--primary); background-color: var(--primary-light); }
+    .pay-method .pm-radio { width: 16px; height: 16px; border: 2px solid var(--text-placeholder); border-radius: 50%; margin-right: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .pay-method.active .pm-radio { border-color: var(--primary); }
+    .pay-method.active .pm-radio::after { content: ""; width: 8px; height: 8px; background-color: var(--primary); border-radius: 50%; }
+    .pay-method .pm-icon { width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 14px; font-weight: 700; margin-right: 14px; flex-shrink: 0; }
+    .pm-scan { background-color: var(--primary); }
+    .pm-quick { background-color: var(--info); }
+    .pay-method .pm-info { flex: 1; }
+    .pay-method .pm-info .pm-name { font-size: 14px; color: var(--text); font-weight: 500; }
+    .pay-method .pm-info .pm-desc { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+    .pay-method .pm-badge { font-size: 10px; color: var(--primary); background-color: var(--primary-light); padding: 2px 6px; border-radius: 2px; }
+    .payment-footer { text-align: center; }
+    .pay-btn { width: 240px; height: 46px; background-color: var(--primary); color: #fff; font-size: 16px; font-weight: 500; border-radius: 4px; cursor: pointer; transition: all 0.2s; border: none; }
+    .pay-btn:hover { background-color: var(--primary-hover); box-shadow: 0 4px 16px rgba(30,158,150,0.3); }
+    .pay-tips { font-size: 11px; color: var(--text-tertiary); margin-top: 16px; }
+    .pay-tips a { color: var(--primary); }
+  </style>
+</head>
+<body>
+
+<header class="simple-header">
+  <div class="container">
+    <a href="index.html" class="logo"><img src="images/logo.png" alt="随心商城"></a>
+    <span class="page-title">订单支付</span>
+    <div class="header-right">
+      <a href="orders.html">我的订单</a>
+      <span class="sep">|</span>
+      <a href="index.html">返回首页</a>
+    </div>
+  </div>
+</header>
+
+<div class="container payment-page">
+  <div class="payment-card">
+    <div class="payment-header">
+      <div class="order-no">订单号：<span id="jsOrderNo">—</span></div>
+      <div class="pay-amount">应付金额：<span class="amount"><span class="yuan">¥</span><span id="jsPayAmount">0.00</span></span></div>
+      <div class="countdown">请在 <span class="payment-countdown" id="jsCountdown">--</span> 内完成支付，超时订单将自动取消</div>
+    </div>
+
+    <div class="payment-methods-title">选择支付方式</div>
+    <div class="payment-method-list">
+      <div class="pay-method active" data-pay="1">
+        <div class="pm-radio"></div>
+        <div class="pm-icon pm-scan">扫</div>
+        <div class="pm-info">
+          <div class="pm-name">扫码支付</div>
+          <div class="pm-desc">演示环境模拟支付，不产生真实交易</div>
+        </div>
+        <span class="pm-badge">推荐</span>
+      </div>
+      <div class="pay-method" data-pay="2">
+        <div class="pm-radio"></div>
+        <div class="pm-icon pm-quick">快</div>
+        <div class="pm-info">
+          <div class="pm-name">快捷支付</div>
+          <div class="pm-desc">演示环境模拟支付，不产生真实交易</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="payment-footer">
+      <button class="pay-btn" id="jsPayBtn">立即支付</button>
+      <div class="pay-tips">演示环境模拟支付，不产生真实交易，详见 <a href="service.html">服务说明</a></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer-copyright">
+  <div class="container">
+    <div class="footer-logo"><img src="images/logo.png" alt="随心商城"></div>
+    <div class="footer-info">
+      <div class="footer-links-row">
+        <a href="index.html">商城首页</a>
+        <span class="sep">|</span>
+        <a href="service.html">服务中心</a>
+        <span class="sep">|</span>
+        <a href="orders.html">我的订单</a>
+        <span class="sep">|</span>
+        <a href="after-sale.html">售后中心</a>
+        <span class="sep">|</span>
+        <a href="coupons.html">我的优惠券</a>
+      </div>
+      <div class="footer-record">© 2026 shop-open · 开源演示项目，非真实商户</div>
+    </div>
+  </div>
+  <div class="footer-slogan">随心选好物，品质看得见</div>
+</div>
+
+<script src="js/ui.js"></script>
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/page-payment.js"></script>
+<script src="js/live.js"></script>
+</body>
+</html>

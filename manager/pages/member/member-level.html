@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>会员等级 - 商城后台管理系统</title>
+  <link rel="stylesheet" href="../../css/common.css?v=20260904e">
+  <style>
+    #levelModal .modal { width: 560px; }
+    #levelModal .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+    #levelModal .form-group-full { grid-column: span 2; }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main-wrapper">
+      <header class="header" id="header"></header>
+      <main class="content">
+        <div class="page-header">
+          <div><h1 class="page-title">会员等级</h1><p class="page-desc">配置会员成长等级、升级条件与会员权益折扣</p></div>
+          <div class="btn-group">
+            <button class="btn btn-primary" id="btnAdd" onclick="openCreate()" style="display:none;">➕ 新增等级</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body no-padding">
+            <div class="table-wrapper">
+              <table class="table">
+                <thead><tr><th>等级名称</th><th>升级条件</th><th>会员折扣</th><th>会员权益</th><th style="min-width:110px;">会员数</th><th>状态</th><th class="col-actions">操作</th></tr></thead>
+                <tbody id="levelBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="levelModal">
+    <div class="modal">
+      <div class="modal-header"><h3 class="modal-title" id="levelModalTitle">新增等级</h3><button class="modal-close" data-close-modal="levelModal">✕</button></div>
+      <div class="modal-body">
+        <div class="alert alert-info">升级条件仅作配置记录，<strong>当前版本不会自动升级会员等级</strong>；均为 0 表示注册即享（默认等级）。</div>
+        <div class="form-grid">
+          <div class="form-group"><label class="form-label">等级名称 <span class="required">*</span></label><input type="text" id="levelName" class="form-control" maxlength="50" placeholder="如：黄金会员"></div>
+          <div class="form-group"><label class="form-label">状态</label><select id="levelStatus" class="form-control"><option value="1">启用</option><option value="0">停用</option></select></div>
+          <div class="form-group"><label class="form-label">升级消费金额(元)</label><input type="number" id="upgradeAmount" class="form-control" min="0" placeholder="0 表示不限制"></div>
+          <div class="form-group"><label class="form-label">升级所需积分</label><input type="number" id="upgradePoints" class="form-control" min="0" placeholder="0 表示不限制"></div>
+          <div class="form-group"><label class="form-label">会员折扣(折)</label><input type="number" id="discountRate" class="form-control" min="0" max="10" step="0.1" placeholder="如 8.5，10 为无折扣"></div>
+          <div class="form-group form-group-full"><label class="form-label">会员权益</label><textarea id="benefits" class="form-control" rows="3" maxlength="500" placeholder="如：全场 9 折、生日双倍积分、专属客服"></textarea></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-close-modal="levelModal">取消</button><button class="btn btn-primary" onclick="saveLevel()">保存</button></div>
+    </div>
+  </div>
+
+  <script src="../../js/common.js?v=20260904e"></script>
+  <script>
+    const API = AdminUI.API_BASE;
+    let EDIT_ID = null;
+
+    function esc(v) { return AdminUI.escHtml(v === null || v === undefined ? '' : String(v)); }
+
+    function levelBadge(status) {
+      return status === 1 ? '<span class="badge-tag success">启用</span>' : '<span class="badge-tag default">停用</span>';
+    }
+
+    function condText(l) {
+      const moneyText = (l.upgradeAmount || 0) ? ('消费满 ¥' + Number(l.upgradeAmount).toLocaleString('zh-CN')) : '消费不限';
+      const pointsText = (l.upgradePoints || 0) ? ('积分满 ' + l.upgradePoints) : '积分不限';
+      return '<div>' + moneyText + '</div><div style="font-size:11px;color:var(--text-muted);margin-top:2px;">' + pointsText + '</div>';
+    }
+
+    function discountText(r) {
+      const rate = Number(r || 10);
+      return rate >= 10 ? '<span style="color:var(--text-muted);">无折扣</span>' : '<b style="color:var(--danger);">' + rate + ' 折</b>';
+    }
+
+    function loadLevels() {
+      AdminUI.get(API + '/member-levels').then(function (levels) {
+        if (!levels) return;
+        const rows = levels.map(function (l) {
+          return '<tr>' +
+            '<td style="font-weight:600;">' + esc(l.levelName) + '</td>' +
+            '<td style="font-size:12px;">' + condText(l) + '</td>' +
+            '<td>' + discountText(l.discountRate) + '</td>' +
+            '<td class="cell-break" style="max-width:260px;"><div class="cell-ellipsis" title="' + esc(l.benefits) + '">' + esc(l.benefits || '—') + '</div></td>' +
+            '<td>' + (l.memberCount || 0) + '</td>' +
+            '<td>' + levelBadge(l.status) + '</td>' +
+            '<td class="col-actions">' + (AdminUI.can('member:edit') ? '<a class="action-link" onclick="openEdit(' + l.id + ')">编辑</a>' : '<span style="color:var(--text-muted);">-</span>') + '</td>' +
+            '</tr>';
+        }).join('');
+        document.getElementById('levelBody').innerHTML = rows || '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px 0;">暂无等级数据</td></tr>';
+      });
+    }
+
+    function openCreate() {
+      EDIT_ID = null;
+      document.getElementById('levelModalTitle').textContent = '新增等级';
+      document.getElementById('levelName').value = '';
+      document.getElementById('upgradeAmount').value = '';
+      document.getElementById('upgradePoints').value = '';
+      document.getElementById('discountRate').value = '10';
+      document.getElementById('benefits').value = '';
+      document.getElementById('levelStatus').value = '1';
+      AdminUI.openModal('levelModal');
+    }
+
+    function openEdit(id) {
+      AdminUI.get(API + '/member-levels').then(function (levels) {
+        const l = (levels || []).filter(function (x) { return x.id === id; })[0];
+        if (!l) return;
+        EDIT_ID = id;
+        document.getElementById('levelModalTitle').textContent = '编辑等级';
+        document.getElementById('levelName').value = l.levelName;
+        document.getElementById('upgradeAmount').value = l.upgradeAmount || 0;
+        document.getElementById('upgradePoints').value = l.upgradePoints || 0;
+        document.getElementById('discountRate').value = l.discountRate;
+        document.getElementById('benefits').value = l.benefits || '';
+        document.getElementById('levelStatus').value = String(l.status);
+        AdminUI.openModal('levelModal');
+      });
+    }
+
+    function collect() {
+      const name = document.getElementById('levelName').value.trim();
+      if (!name) { AdminUI.showToast('请输入等级名称', 'warning'); return null; }
+      const amount = Number(document.getElementById('upgradeAmount').value || 0);
+      const points = Number(document.getElementById('upgradePoints').value || 0);
+      const rate = Number(document.getElementById('discountRate').value || 10);
+      if (amount < 0 || points < 0) { AdminUI.showToast('升级条件不能为负数', 'warning'); return null; }
+      if (rate < 0 || rate > 10) { AdminUI.showToast('折扣需在 0~10 之间（10 为无折扣）', 'warning'); return null; }
+      return {
+        levelName: name,
+        upgradeAmount: amount,
+        upgradePoints: points,
+        discountRate: rate,
+        benefits: document.getElementById('benefits').value.trim(),
+        status: Number(document.getElementById('levelStatus').value)
+      };
+    }
+
+    async function saveLevel() {
+      const body = collect();
+      if (!body) return;
+      const url = API + '/member-levels' + (EDIT_ID ? '/' + EDIT_ID : '');
+      try {
+        if (EDIT_ID) {
+          await AdminUI.put(url, body);
+        } else {
+          await AdminUI.post(url, body);
+        }
+        AdminUI.closeModal('levelModal');
+        AdminUI.showToast(EDIT_ID ? '等级已更新' : '等级已新增', 'success');
+        loadLevels();
+      } catch (e) { }
+    }
+
+    (async function () {
+      const ok = await AdminUI.initPage({ key: 'member-level', breadcrumb: ['用户管理', '会员等级'], need: ['member:list'] });
+      if (!ok) return;
+      if (AdminUI.can('member:add')) document.getElementById('btnAdd').style.display = '';
+      loadLevels();
+    })();
+  </script>
+</body>
+</html>

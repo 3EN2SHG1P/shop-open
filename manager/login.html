@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <link rel="icon" type="image/png" href="images/logo.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录 - 商城后台管理系统</title>
+  <link rel="stylesheet" href="css/common.css?v=20260904e">
+  <link rel="stylesheet" href="css/login.css">
+</head>
+<body>
+  <div class="login-page">
+    <span class="deco-dot" style="width:12px;height:12px;top:15%;left:10%;animation-delay:0s;"></span>
+    <span class="deco-dot" style="width:8px;height:8px;top:25%;right:15%;animation-delay:1s;"></span>
+    <span class="deco-dot" style="width:16px;height:16px;bottom:20%;left:20%;animation-delay:2s;"></span>
+    <span class="deco-dot" style="width:10px;height:10px;bottom:30%;right:10%;animation-delay:1.5s;"></span>
+    <div class="login-container">
+      <div class="login-brand">
+        <div class="brand-logo">
+          <div class="logo-icon"><img src="images/logo.png" alt="随心商城"></div>
+          <span class="logo-text">随心商城管理后台</span>
+        </div>
+        <div class="brand-content">
+          <h1 class="brand-title">随心商城<br>后台管理系统</h1>
+          <p class="brand-desc">
+            全链路运营管理平台，覆盖商品、订单、用户、营销、内容等核心业务模块，助力商城高效运营。
+          </p>
+        </div>
+        <div class="brand-features">
+          <div class="brand-feature">
+            <span class="feature-icon">✓</span>
+            <span>RBAC 四层权限管控</span>
+          </div>
+          <div class="brand-feature">
+            <span class="feature-icon">✓</span>
+            <span>实时数据仪表盘</span>
+          </div>
+          <div class="brand-feature">
+            <span class="feature-icon">✓</span>
+            <span>完整订单状态流转</span>
+          </div>
+          <div class="brand-feature">
+            <span class="feature-icon">✓</span>
+            <span>多维度营销活动管理</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="login-form-wrap">
+        <h2 class="login-form-title">欢迎登录</h2>
+        <p class="login-form-subtitle">请输入您的账号信息进入管理后台</p>
+
+        <form class="login-form" id="loginForm" onsubmit="return handleLogin(event)">
+          <div class="form-group">
+            <label class="form-label">登录账号</label>
+            <div class="input-group">
+              <span class="input-icon">👤</span>
+              <input type="text" class="form-control" id="username" placeholder="请输入登录账号" autocomplete="username">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">登录密码</label>
+            <div class="input-group">
+              <span class="input-icon">🔒</span>
+              <input type="password" class="form-control" id="password" placeholder="请输入登录密码" autocomplete="current-password">
+              <span class="input-suffix" onclick="togglePassword()">👁</span>
+            </div>
+          </div>
+
+          <div class="login-error" id="loginError" style="display:none;margin-bottom:12px;padding:8px 12px;border-radius:6px;background:#FFF1F0;color:#CF1322;font-size:13px;"></div>
+
+          <button type="submit" class="login-btn" id="loginBtn">
+            <span>登 录</span>
+          </button>
+
+          <div class="login-footer">
+            演示账号：admin / 初始口令
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/common.js?v=20260904e"></script>
+  <script>
+    function togglePassword() {
+      const pwd = document.getElementById('password');
+      pwd.type = pwd.type === 'password' ? 'text' : 'password';
+    }
+
+    function showLoginError(msg) {
+      const el = document.getElementById('loginError');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      const btn = document.getElementById('loginBtn');
+      if (!username || !password) {
+        showLoginError('请输入账号和密码');
+        return false;
+      }
+      btn.disabled = true;
+      btn.querySelector('span').textContent = '登录中...';
+      try {
+        const data = await AdminUI.request('POST', AdminUI.API_BASE + '/auth/login', { username: username, password: password }, { redirect401: false });
+        const session = {
+          token: data.token,
+          username: data.user.username,
+          realName: data.user.realName || '',
+          roles: data.user.roles || [],
+          permissions: [],
+          loginTime: new Date().toISOString()
+        };
+        AdminUI.setSession(session);
+        try {
+          const me = await AdminUI.request('GET', AdminUI.API_BASE + '/auth/me');
+          AdminUI.setSession(Object.assign(AdminUI.getSession(), {
+            realName: me.realName || me.username || '',
+            roles: me.roles || [],
+            permissions: me.permissions || [],
+            dataScope: me.dataScope,
+            deptId: me.deptId
+          }));
+        } catch (err) { }
+        try { localStorage.removeItem('mall_admin_sidebar_collapsed'); } catch (e) { }
+        try { sessionStorage.removeItem('mall_admin_sidebar_state'); } catch (e) { }
+        window.location.href = 'dashboard.html';
+      } catch (err) {
+        showLoginError(err.message || '登录失败，请重试');
+      }
+      btn.disabled = false;
+      btn.querySelector('span').textContent = '登 录';
+      return false;
+    }
+  </script>
+</body>
+</html>

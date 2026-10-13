@@ -1,0 +1,75 @@
+# 中间文件（不备份不入库）
+artifacts/
+.playwright-cli/
+
+# 运行期上传资产（不入库）
+uploads/*
+!uploads/seed/
+!uploads/seed/*
+# 虚拟环境
+.venv/
+venv/
+
+# 日志
+*.log
+
+# Python 缓存（backend/.gitignore 已覆盖，此处双保险）
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+.tox/
+nohup.out
+_uv.out
+_uv.err
+
+# 环境变量与密钥（模板必须入库，真实 .env 绝不入库）
+# 注意：.env.* 已顺带覆盖 backend/.env 与根目录 .env.db（Docker Compose 的本地口令文件）
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+*.jks
+id_rsa*
+*.old
+
+# 数据库导出（含真实业务数据，绝不入库）
+*.sql
+*.sql.gz
+*.dump
+*.db
+*.sqlite3
+*.sqlite
+
+# 编辑/备份残留可能含旧密钥
+*.bak
+*.orig
+*~
+.history/
+
+# IDE / 编辑器
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 操作系统
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# 构建/依赖产物（按需保留）
+node_modules/
+dist/
+build/
+
+# IDE / AI 工具数据
+.codebuddy/

@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文章管理 - 商城后台管理系统</title>
+  <link rel="stylesheet" href="../../css/common.css?v=20260905b">
+  <style>
+    #articleModal .modal { width: 720px; }
+    #catModal .modal { width: 560px; }
+    #articleModal .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+    #articleModal .form-group-full { grid-column: span 2; }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main-wrapper">
+      <header class="header" id="header"></header>
+      <main class="content">
+        <div class="page-header">
+          <div><h1 class="page-title">文章管理</h1><p class="page-desc">维护商城帮助文档、活动资讯等文章内容</p></div>
+          <div class="btn-group">
+            <button class="btn btn-secondary" id="btnCat" onclick="openCatManager()" style="display:none;">🗂️ 文章分类</button>
+            <button class="btn btn-primary" id="btnAdd" onclick="openCreate()" style="display:none;">➕ 新增文章</button>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-body" style="padding:12px 20px;">
+            <div class="filter-bar">
+              <input type="text" class="form-control filter-input" id="fKeyword" placeholder="文章标题">
+              <select class="form-control filter-input" id="fCategory" style="width:150px;"><option value="0">全部分类</option></select>
+              <select class="form-control filter-input" id="fStatus" style="width:110px;"><option value="">发布状态</option><option value="1">已发布</option><option value="0">草稿</option></select>
+              <div class="filter-actions"><button class="btn btn-primary" onclick="resetSearch()">重置</button></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body no-padding">
+            <div class="table-wrapper">
+              <table class="table">
+                <thead><tr><th>文章标题</th><th>封面</th><th>分类</th><th>作者</th><th>摘要</th><th>状态</th><th>发布时间</th><th class="col-actions">操作</th></tr></thead>
+                <tbody id="articleBody"></tbody>
+              </table>
+            </div>
+            <div id="articlePagination" class="pagination"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="articleModal">
+    <div class="modal">
+      <div class="modal-header"><h3 class="modal-title" id="articleModalTitle">新增文章</h3><button class="modal-close" data-close-modal="articleModal">✕</button></div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group form-group-full"><label class="form-label">文章标题 <span class="required">*</span></label><input type="text" id="aTitle" class="form-control" maxlength="200"></div>
+          <div class="form-group"><label class="form-label">所属分类</label><select id="aCategory" class="form-control"><option value="">未分类</option></select></div>
+          <div class="form-group"><label class="form-label">作者</label><input type="text" id="aAuthor" class="form-control" maxlength="50"></div>
+          <div class="form-group form-group-full"><label class="form-label">封面图</label>
+            <div class="img-field">
+              <div class="img-thumb" id="aCoverPreview">🖼</div>
+              <input type="text" id="aCover" class="form-control" placeholder="可粘贴 http(s) 图片外链，或点击「上传」选择本地图片">
+              <button type="button" class="btn btn-sm btn-secondary upload-trigger" id="btnACover">上传</button>
+            </div>
+          </div>
+          <div class="form-group"><label class="form-label">发布状态</label><select id="aStatus" class="form-control"><option value="1">发布</option><option value="0">存草稿</option></select></div>
+          <div class="form-group"><label class="form-label">发布时间</label><input type="datetime-local" id="aPublish" class="form-control"></div>
+          <div class="form-group form-group-full"><label class="form-label">摘要</label><input type="text" id="aSummary" class="form-control" maxlength="500"></div>
+          <div class="form-group form-group-full"><label class="form-label">正文内容</label><textarea id="aContent" class="form-control" rows="8" placeholder="支持 HTML 内容"></textarea></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-close-modal="articleModal">取消</button><button class="btn btn-primary" onclick="saveArticle()">保存</button></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="catModal">
+    <div class="modal">
+      <div class="modal-header"><h3 class="modal-title">文章分类管理</h3><button class="modal-close" data-close-modal="catModal">✕</button></div>
+      <div class="modal-body">
+        <div class="btn-group" style="margin-bottom:10px;">
+          <button class="btn btn-primary btn-sm" onclick="openCatEdit()" id="btnCatAdd">➕ 新增分类</button>
+        </div>
+        <div class="table-wrapper">
+          <table class="table">
+            <thead><tr><th>分类名称</th><th>文章数</th><th>排序</th><th>状态</th><th class="col-actions">操作</th></tr></thead>
+            <tbody id="catBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="catEditModal">
+    <div class="modal" style="width:420px;">
+      <div class="modal-header"><h3 class="modal-title" id="catEditTitle">新增分类</h3><button class="modal-close" data-close-modal="catEditModal">✕</button></div>
+      <div class="modal-body">
+        <div class="form-group"><label class="form-label">分类名称 <span class="required">*</span></label><input type="text" id="cName" class="form-control" maxlength="50"></div>
+        <div class="form-group"><label class="form-label">排序值</label><input type="number" id="cSort" class="form-control" min="0" value="0"></div>
+        <div class="form-group"><label class="form-label">状态</label><select id="cStatus" class="form-control"><option value="1">启用</option><option value="0">停用</option></select></div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-close-modal="catEditModal">取消</button><button class="btn btn-primary" onclick="saveCat()">保存</button></div>
+    </div>
+  </div>
+
+  <script src="../../js/common.js?v=20260905b"></script>
+  <script>
+    const API = AdminUI.API_BASE;
+    let EDIT_ID = null;
+    let CAT_EDIT_ID = null;
+    let PAGE = 1;
+    let SIZE = 10;
+    const F = { keyword: '', category_id: 0, status: '' };
+    let CATS = [];
+    function esc(v) { return AdminUI.escHtml(v === null || v === undefined ? '' : String(v)); }
+    function statusBadge(s) { return s === 1 ? '<span class="badge-tag success">已发布</span>' : '<span class="badge-tag default">草稿</span>'; }
+
+    function loadCategories() {
+      AdminUI.get(API + '/article-categories').then(function (list) {
+        CATS = list || [];
+        const fSel = document.getElementById('fCategory');
+        fSel.innerHTML = '<option value="0">全部分类</option>' + CATS.map(function (c) { return '<option value="' + c.id + '">' + esc(c.name) + '</option>'; }).join('');
+        if (F.category_id) fSel.value = String(F.category_id);
+        const aSel = document.getElementById('aCategory');
+        aSel.innerHTML = '<option value="">未分类</option>' + CATS.map(function (c) { return '<option value="' + c.id + '">' + esc(c.name) + '</option>'; }).join('');
+        renderCatTable();
+      }).catch(function () { });
+    }
+
+    function renderCatTable() {
+      document.getElementById('catBody').innerHTML = (CATS || []).map(function (c) {
+        return '<tr><td style="font-weight:600;">' + esc(c.name) + '</td><td>' + (c.articleCount || 0) + '</td>' +
+          '<td>' + c.sort + '</td><td>' + (c.status === 1 ? '<span class="badge-tag success">启用</span>' : '<span class="badge-tag default">停用</span>') + '</td>' +
+          '<td class="col-actions">' +
+          (AdminUI.can('content:edit') ? '<a class="action-link" onclick="openCatEdit(' + c.id + ')">编辑</a>' : '') +
+          (AdminUI.can('content:delete') ? '<a class="action-link danger" onclick="removeCat(' + c.id + ')">删除</a>' : '') +
+          '</td></tr>';
+      }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px 0;">暂无分类</td></tr>';
+    }
+
+    function doSearch() {
+      F.keyword = document.getElementById('fKeyword').value.trim();
+      F.category_id = Number(document.getElementById('fCategory').value || 0);
+      F.status = document.getElementById('fStatus').value;
+      loadArticles(1);
+    }
+    function resetSearch() {
+      document.getElementById('fKeyword').value = '';
+      document.getElementById('fCategory').value = '0';
+      document.getElementById('fStatus').value = '';
+      F.keyword = ''; F.category_id = 0; F.status = ''; loadArticles(1);
+    }
+
+    function loadArticles(page) {
+      PAGE = page || 1;
+      const params = { page: PAGE, page_size: SIZE };
+      if (F.keyword) params.keyword = F.keyword;
+      if (F.category_id) params.category_id = F.category_id;
+      if (F.status !== '') params.status = F.status;
+      AdminUI.get(API + '/articles', params).then(function (data) {
+        if (!data) return;
+        const rows = (data.list || []).map(function (a) {
+          const coverHtml = AdminUI.isImgSrc(a.cover)
+            ? '<div class="img-thumb-sm">' + AdminUI.imgSrcHtml(a.cover, 'cover') + '</div>'
+            : '<div class="img-thumb-sm" style="color:var(--text-muted);">—</div>';
+          return '<tr>' +
+            '<td style="max-width:220px;font-weight:600;">' + esc(a.title) + '</td>' +
+            '<td>' + coverHtml + '</td>' +
+            '<td><span class="badge-tag primary">' + esc(a.categoryName || '未分类') + '</span></td>' +
+            '<td>' + esc(a.author || '—') + '</td>' +
+            '<td style="max-width:240px;font-size:12px;color:var(--text-muted);">' + esc(a.summary || '—') + '</td>' +
+            '<td>' + statusBadge(a.status) + '</td>' +
+            '<td style="font-size:12px;">' + esc(a.publishTime || '—') + '</td>' +
+            '<td class="col-actions">' +
+            (AdminUI.can('content:edit') ? '<a class="action-link" onclick="openEdit(' + a.id + ')">编辑</a>' : '') +
+            (AdminUI.can('content:delete') ? '<a class="action-link danger" onclick="removeArticle(' + a.id + ')">删除</a>' : '') +
+            '</td></tr>';
+        }).join('');
+        document.getElementById('articleBody').innerHTML = rows || '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:40px 0;">暂无文章</td></tr>';
+        AdminUI.renderPagination('articlePagination', PAGE, Math.max(1, Math.ceil(data.total / SIZE)), data.total, SIZE);
+      });
+    }
+
+    function renderCoverPreview() {
+      const url = document.getElementById('aCover').value.trim();
+      const box = document.getElementById('aCoverPreview');
+      box.innerHTML = AdminUI.isImgSrc(url) ? AdminUI.imgSrcHtml(url, 'cover') : '🖼';
+    }
+
+    function openCreate() {
+      EDIT_ID = null;
+      document.getElementById('articleModalTitle').textContent = '新增文章';
+      document.getElementById('aTitle').value = '';
+      document.getElementById('aCategory').value = '';
+      document.getElementById('aAuthor').value = '';
+      document.getElementById('aCover').value = '';
+      document.getElementById('aStatus').value = '1';
+      document.getElementById('aPublish').value = '';
+      document.getElementById('aSummary').value = '';
+      document.getElementById('aContent').value = '';
+      renderCoverPreview();
+      AdminUI.openModal('articleModal');
+    }
+
+    function openEdit(id) {
+      AdminUI.findRow(API + '/articles', id).then(function (a) {
+        if (!a) return;
+        EDIT_ID = id;
+        document.getElementById('articleModalTitle').textContent = '编辑文章';
+        document.getElementById('aTitle').value = a.title;
+        document.getElementById('aCategory').value = a.categoryId ? String(a.categoryId) : '';
+        document.getElementById('aAuthor').value = a.author || '';
+        document.getElementById('aCover').value = a.cover || '';
+        document.getElementById('aStatus').value = String(a.status);
+        document.getElementById('aPublish').value = (a.publishTime || '').slice(0, 16);
+        document.getElementById('aSummary').value = a.summary || '';
+        document.getElementById('aContent').value = a.content || '';
+        renderCoverPreview();
+        AdminUI.openModal('articleModal');
+      });
+    }
+
+    async function saveArticle() {
+      const title = document.getElementById('aTitle').value.trim();
+      if (!title) { AdminUI.showToast('请输入文章标题', 'warning'); return; }
+      const pub = document.getElementById('aPublish').value;
+      const body = {
+        title: title,
+        categoryId: Number(document.getElementById('aCategory').value || 0) || null,
+        author: document.getElementById('aAuthor').value.trim(),
+        cover: document.getElementById('aCover').value.trim(),
+        summary: document.getElementById('aSummary').value.trim(),
+        content: document.getElementById('aContent').value,
+        status: Number(document.getElementById('aStatus').value),
+        publishTime: pub ? pub.replace('T', ' ') : null
+      };
+      const url = API + '/articles' + (EDIT_ID ? '/' + EDIT_ID : '');
+      try {
+        if (EDIT_ID) await AdminUI.put(url, body); else await AdminUI.post(url, body);
+        AdminUI.closeModal('articleModal');
+        AdminUI.showToast(EDIT_ID ? '文章已更新' : '文章已新增', 'success');
+        loadArticles(EDIT_ID ? PAGE : 1);
+      } catch (e) { }
+    }
+
+    function removeArticle(id) {
+      AdminUI.confirmAction('确定删除该文章？', function () {
+        AdminUI.del(API + '/articles/' + id).then(function () {
+          AdminUI.showToast('文章已删除', 'success');
+          loadArticles(PAGE);
+        }).catch(function () { });
+      });
+    }
+
+    function openCatManager() {
+      loadCategories();
+      AdminUI.openModal('catModal');
+    }
+
+    function openCatEdit(id) {
+      CAT_EDIT_ID = id || null;
+      document.getElementById('catEditTitle').textContent = id ? '编辑分类' : '新增分类';
+      const c = id ? (CATS.filter(function (x) { return x.id === id; })[0] || {}) : {};
+      document.getElementById('cName').value = c.name || '';
+      document.getElementById('cSort').value = c.sort !== undefined ? c.sort : 0;
+      document.getElementById('cStatus').value = String(c.status === undefined ? 1 : c.status);
+      AdminUI.openModal('catEditModal');
+    }
+
+    async function saveCat() {
+      const name = document.getElementById('cName').value.trim();
+      if (!name) { AdminUI.showToast('请输入分类名称', 'warning'); return; }
+      const body = {
+        name: name,
+        sort: Number(document.getElementById('cSort').value || 0),
+        status: Number(document.getElementById('cStatus').value)
+      };
+      const url = API + '/article-categories' + (CAT_EDIT_ID ? '/' + CAT_EDIT_ID : '');
+      try {
+        if (CAT_EDIT_ID) await AdminUI.put(url, body); else await AdminUI.post(url, body);
+        AdminUI.closeModal('catEditModal');
+        AdminUI.showToast('分类已保存', 'success');
+        loadCategories();
+      } catch (e) { }
+    }
+
+    function removeCat(id) {
+      AdminUI.confirmAction('确定删除该分类？', function () {
+        AdminUI.del(API + '/article-categories/' + id).then(function () {
+          AdminUI.showToast('分类已删除', 'success');
+          loadCategories();
+        }).catch(function () { });
+      });
+    }
+
+    (async function () {
+      const ok = await AdminUI.initPage({ key: 'article', breadcrumb: ['内容管理', '文章管理'], need: ['content:list'] });
+      if (!ok) return;
+      if (AdminUI.can('content:add')) document.getElementById('btnAdd').style.display = '';
+      if (AdminUI.can('content:list')) document.getElementById('btnCat').style.display = '';
+      if (!AdminUI.can('content:add')) document.getElementById('btnCatAdd').style.display = 'none';
+      loadCategories();
+      document.getElementById('articlePagination').addEventListener('click', function (e) {
+        const b = e.target.closest('button[data-page]');
+        if (!b || b.disabled) return;
+        loadArticles(Number(b.getAttribute('data-page')));
+      });
+      const debouncedSearch = AdminUI.debounce(doSearch, 300);
+      document.getElementById('fKeyword').addEventListener('input', debouncedSearch);
+      document.getElementById('fCategory').addEventListener('change', doSearch);
+      document.getElementById('fStatus').addEventListener('change', doSearch);
+      AdminUI.enableImageUpload({
+        input: document.getElementById('aCover'),
+        btn: document.getElementById('btnACover'),
+        onUpload: function () { renderCoverPreview(); }
+      });
+      document.getElementById('articlePagination').addEventListener('change', function (e) {
+        if (e.target.classList.contains('page-size-select')) {
+          SIZE = parseInt(e.target.value, 10);
+          loadArticles(1);
+        }
+      });
+      loadArticles(1);
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <link rel="icon" type="image/png" href="images/logo.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>收货地址 - 随心商城</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .address-page { padding: 20px 0 40px; min-height: 400px; }
+    .page-tip-line { font-size: 12px; color: var(--text-tertiary); padding: 0 0 12px; }
+    .address-list { display: flex; flex-direction: column; gap: 12px; }
+    .address-card { border: 1px solid var(--border); border-radius: 4px; padding: 16px 20px; cursor: pointer; transition: all 0.2s; position: relative; background-color: var(--bg-white); }
+    .address-card:hover { border-color: var(--primary); }
+    .address-card.active { border-color: var(--primary); background-color: var(--primary-light); }
+    .address-card .addr-top { display: flex; align-items: center; margin-bottom: 8px; }
+    .address-card .addr-name { font-size: 14px; font-weight: 700; color: var(--text); margin-right: 16px; }
+    .address-card .addr-phone { font-size: 13px; color: var(--text-secondary); }
+    .address-card .addr-default { display: inline-block; padding: 2px 6px; background-color: var(--primary); color: #fff; font-size: 10px; border-radius: 2px; margin-left: 12px; }
+    .address-card .addr-detail { font-size: 13px; color: var(--text-secondary); line-height: 1.5; padding-right: 200px; }
+    .address-card .addr-actions { position: absolute; right: 20px; top: 16px; display: flex; gap: 12px; }
+    .address-card .addr-actions a { font-size: 12px; color: var(--text-secondary); }
+    .address-card .addr-actions a:hover { color: var(--primary); }
+    .add-address-link { display: inline-flex; align-items: center; justify-content: center; width: 100%; padding: 16px; border: 1px dashed var(--border); border-radius: 4px; font-size: 13px; color: var(--text-secondary); cursor: pointer; transition: all 0.2s; background-color: var(--bg-white); }
+    .add-address-link:hover { border-color: var(--primary); color: var(--primary); }
+    .loading-hint, .empty-hint { padding: 40px 0; text-align: center; font-size: 13px; color: var(--text-secondary); background-color: var(--bg-white); border-radius: 4px; }
+    .page-actions { margin-top: 16px; text-align: right; }
+    .page-actions a { display: inline-block; padding: 8px 24px; background-color: var(--primary); color: #fff; font-size: 13px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+<!-- 简化版导航栏 -->
+<header class="simple-header">
+  <div class="container">
+    <a href="index.html" class="logo"><img src="images/logo.png" alt="随心商城"></a>
+    <span class="page-title" id="jsTitle">收货地址</span>
+    <div class="header-right">
+      <a href="index.html">返回首页</a>
+    </div>
+  </div>
+</header>
+
+<div class="container address-page">
+  <div class="page-tip-line" id="jsTip"></div>
+  <div class="address-list" id="jsAddressList">
+    <div class="loading-hint">加载中…</div>
+  </div>
+  <div class="page-actions">
+    <a href="address-add.html?from=address.html" id="jsAddAddress">+ 新增收货地址</a>
+  </div>
+</div>
+
+<script src="js/ui.js"></script>
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/page-address.js"></script>
+<script src="js/live.js"></script>
+</body>
+</html>

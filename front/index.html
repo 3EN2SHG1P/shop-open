@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <link rel="icon" type="image/png" href="images/logo.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>随心商城 - 好物随心，品质随行（开源演示站点）</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .hero-section { margin-top: 0; }
+    .notice-strip {
+      margin: 10px auto 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.04);
+      padding: 9px 14px;
+      font-size: 13px;
+      color: #666;
+      overflow: hidden;
+    }
+    .notice-strip .notice-tag {
+      flex: none;
+      background: var(--primary);
+      color: #fff;
+      font-size: 12px;
+      padding: 1px 8px;
+      border-radius: 3px;
+    }
+    .notice-strip .notice-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .notice-strip .notice-more { flex: none; color: #999; margin-left: auto; }
+
+    .category-menu.js-catmenu { min-height: 466px; }
+    .js-cat-empty { padding: 16px; color: #fff; opacity: .75; font-size: 13px; }
+  </style>
+</head>
+<body>
+
+<!-- 顶部黑色通栏 -->
+<div class="top-bar">
+  <div class="container">
+    <div class="top-bar-left">
+      <a href="index.html">商城首页</a><span class="sep">|</span>
+      <a href="search.html">全部商品</a><span class="sep">|</span>
+      <a href="service.html">服务中心</a><span class="sep">|</span>
+      <a href="orders.html">我的订单</a>
+    </div>
+    <div class="top-bar-right">
+      <a href="login.html" class="js-login">登录</a>
+      <a href="register.html" class="js-register">注册</a>
+      <a href="service.html" class="js-message hidden">消息通知</a>
+      <a href="#" class="js-logout hidden">退出</a>
+      <a href="cart.html" class="cart-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+        购物车(<span class="cart-count">0</span>)
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- 主导航栏 -->
+<header class="main-header">
+  <div class="container">
+    <a href="index.html" class="logo"><img src="images/logo.png" alt="随心商城"></a>
+    <nav class="main-nav">
+      <a href="search.html">手机</a>
+      <a href="search.html">智能手机</a>
+      <a href="search.html">电视</a>
+      <a href="search.html">笔记本</a>
+      <a href="search.html">平板</a>
+      <a href="search.html">家电</a>
+      <a href="search.html">路由器</a>
+      <a href="service.html">服务中心</a>
+    </nav>
+    <div class="search-box">
+      <input type="text" class="search-input" placeholder="冰箱">
+      <button class="search-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- 公告条 -->
+<div class="container">
+  <div class="notice-strip" id="jsNotice" style="display:none;"></div>
+</div>
+
+<!-- 首屏：左侧分类 + 右侧Banner -->
+<div class="container">
+  <div class="hero-section">
+    <div class="category-menu js-catmenu" id="jsCatMenu">
+      <div class="js-cat-empty">分类加载中…</div>
+    </div>
+    <div class="banner" id="jsBanner">
+      <div class="js-banner-loading banner-slide active" style="background:linear-gradient(120deg,#f7f7f7,#ececec);">
+        <div class="banner-text"><div class="banner-tag">loading</div></div>
+      </div>
+      <span class="banner-arrow prev">‹</span>
+      <span class="banner-arrow next">›</span>
+      <div class="banner-dots"><span class="dot active"></span></div>
+    </div>
+  </div>
+
+  <!-- 服务快捷入口栏 -->
+  <div class="service-bar">
+    <div class="service-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span>保障服务</span></div>
+    <div class="service-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg><span>企业团购</span></div>
+    <div class="service-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg><span>领券中心</span></div>
+    <div class="service-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/></svg><span>会员中心</span></div>
+    <div class="service-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg><span>以旧换新</span></div>
+    <div class="service-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg><span>积分商城</span></div>
+  </div>
+
+  <!-- 运营活动横幅（来自广告位数据） -->
+  <div class="promo-banner js-promo" id="jsPromo" style="display:none;"></div>
+
+  <!-- 楼层商品（来自 home 推荐/热销/新品） -->
+  <div id="jsFloors"></div>
+
+  <!-- 服务保障栏 -->
+  <div style="text-align:center;font-size:12px;color:#999;padding:10px 0 0;">以下服务标识为演示站点示例说明，不代表任何真实商家承诺</div>
+  <div class="guarantee-bar">
+    <div class="guarantee-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg><span>描述与实物一致</span></div>
+    <div class="guarantee-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg><span>7天无理由退货</span></div>
+    <div class="guarantee-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg><span>售后无忧</span></div>
+    <div class="guarantee-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/></svg><span>按模板计运费</span></div>
+    <div class="guarantee-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg><span>48 小时内发货</span></div>
+  </div>
+</div>
+
+  <!-- 页脚链接导航区 -->
+  <div class="footer-links">
+    <div class="container" style="display:flex;">
+      <div class="link-columns">
+        <div class="link-col">
+          <h4>选购指南</h4>
+          <a href="search.html">全部商品</a><a href="index.html">首页推荐</a>
+          <a href="search.html">分类浏览</a>
+        </div>
+        <div class="link-col">
+          <h4>服务中心</h4>
+          <a href="service.html">帮助中心</a><a href="after-sale.html">申请售后</a>
+          <a href="orders.html">订单查询</a><a href="coupons.html">领券中心</a>
+        </div>
+        <div class="link-col">
+          <h4>我的</h4>
+          <a href="cart.html">购物车</a><a href="points.html">我的积分</a>
+          <a href="address.html">收货地址</a>
+        </div>
+      </div>
+      <div class="customer-service">
+        <div class="phone">400-000-0000</div>
+        <div class="phone-time">9:00-21:00（示例号码，非真实客服）</div>
+        <a href="service.html" class="service-btn">联系客服</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- 版权备案信息区 -->
+  <div class="footer-copyright">
+    <div class="container">
+      <div class="footer-logo"><img src="images/logo.png" alt="随心商城"></div>
+      <div class="footer-info">
+        <div class="footer-links-row">
+          <a href="index.html">商城首页</a><span class="sep">|</span>
+          <a href="service.html">服务中心</a><span class="sep">|</span>
+          <a href="orders.html">我的订单</a><span class="sep">|</span>
+          <a href="after-sale.html">售后中心</a><span class="sep">|</span>
+          <a href="coupons.html">我的优惠券</a>
+        </div>
+        <div class="footer-record">
+          © 2026 shop-open · 开源演示项目，非真实商户
+        </div>
+      </div>
+    </div>
+    <div class="footer-slogan">随心选好物，品质看得见</div>
+  </div>
+
+<!-- 右侧固定悬浮工具栏 -->
+<div class="fixed-toolbar">
+  <div class="toolbar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg><span>手机APP</span></div>
+  <div class="toolbar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>个人中心</span></div>
+  <div class="toolbar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg><span>售后服务</span></div>
+  <div class="toolbar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg><span>人工客服</span></div>
+  <a href="cart.html" class="toolbar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg><span>购物车</span></a>
+</div>
+
+<script src="js/ui.js"></script>
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/main.js"></script>
+<script src="js/page-home.js"></script>
+<script src="js/live.js"></script>
+</body>
+</html>

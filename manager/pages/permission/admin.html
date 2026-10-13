@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理员管理 - 商城后台管理系统</title>
+  <link rel="stylesheet" href="../../css/common.css?v=20260904e">
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main-wrapper">
+      <header class="header" id="header"></header>
+      <main class="content">
+        <div class="page-header">
+          <div><h1 class="page-title">管理员管理</h1><p class="page-desc">管理后台管理员账号和角色分配</p></div>
+          <button class="btn btn-primary" id="btnAddAdmin" onclick="openCreateAdmin()">➕ 新增管理员</button>
+        </div>
+        <div class="filter-bar">
+          <div class="filter-row">
+            <div class="filter-item"><label>关键词</label><input type="text" class="form-control" id="f-keyword" placeholder="账号/姓名"></div>
+            <div class="filter-item"><label>部门</label><select class="form-control" id="f-dept"></select></div>
+            <div class="filter-item"><label>状态</label><select class="form-control" id="f-status"><option value="">全部</option><option value="1">启用</option><option value="0">禁用</option></select></div>
+            <div class="filter-actions"><button class="btn btn-primary" onclick="resetAdmin()">重置</button></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body no-padding">
+            <div class="table-wrapper">
+              <table class="table">
+                <thead><tr><th>账号</th><th>姓名</th><th>手机号</th><th>邮箱</th><th>部门</th><th>角色</th><th>最后登录</th><th>状态</th><th class="col-actions">操作</th></tr></thead>
+                <tbody id="adminTbody"></tbody>
+              </table>
+            </div>
+            <div class="pagination" id="adminPagination"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <div class="modal-overlay" id="adminModal">
+    <div class="modal">
+      <div class="modal-header"><h3 class="modal-title" id="adminModalTitle">新增管理员</h3><button class="modal-close" data-close-modal="adminModal">✕</button></div>
+      <div class="modal-body">
+        <div id="a-createFields">
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">登录账号 <span class="required">*</span></label><input type="text" class="form-control" id="a-username" placeholder="2-50位字母/数字"></div>
+            <div class="form-group"><label class="form-label">初始密码 <span class="required">*</span></label><input type="password" class="form-control" id="a-password" placeholder="至少6位"></div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">姓名</label><input type="text" class="form-control" id="a-realName" placeholder="请输入姓名"></div>
+          <div class="form-group"><label class="form-label">手机号</label><input type="text" class="form-control" id="a-phone" placeholder="请输入手机号"></div>
+          <div class="form-group"><label class="form-label">邮箱</label><input type="email" class="form-control" id="a-email" placeholder="请输入邮箱"></div>
+          <div class="form-group"><label class="form-label">所属部门</label><select class="form-control" id="a-dept"></select></div>
+        </div>
+        <div class="form-group"><label class="form-label">分配角色（可多选）</label>
+          <div style="display:flex;flex-wrap:wrap;gap:12px;padding:12px;border:1px solid var(--border-color);border-radius:var(--radius);" id="a-roles"></div>
+        </div>
+        <div class="form-group"><label class="form-label">状态</label><label class="switch"><input type="checkbox" id="a-status" checked><span class="switch-slider"></span></label></div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-close-modal="adminModal">取消</button><button class="btn btn-primary" onclick="saveAdmin()">确认创建</button></div>
+    </div>
+  </div>
+  <script src="../../js/common.js?v=20260904e"></script>
+  <script>
+    let PAGE = 1;
+    let SIZE = 10;
+    let F = { keyword: '', deptId: '', status: '' };
+    let ADMINS = [];
+    let EDIT_ID = null;
+    let ROLE_LIST = [];
+    let DEPT_LIST = [];
+
+    function badgeCls(i) { return ['purple', 'primary', 'info', 'warning', 'default'][i % 5]; }
+
+    function deptName(id) {
+      if (!id) return '-';
+      for (let i = 0; i < DEPT_LIST.length; i++) {
+        if (DEPT_LIST[i].id === id) return DEPT_LIST[i].deptName || DEPT_LIST[i].name || '-';
+      }
+      return id;
+    }
+
+    async function loadOptions() {
+      try {
+        const roles = await AdminUI.get(AdminUI.API_BASE + '/permission/roles');
+        const depts = await AdminUI.get(AdminUI.API_BASE + '/permission/depts');
+        ROLE_LIST = roles || [];
+        DEPT_LIST = AdminUI.flattenTree(depts || []);
+        const roleHtml = ROLE_LIST.map(r => `<label class="checkbox-wrapper"><input type="checkbox" class="role-cb" value="${r.id}">${AdminUI.esc(r.roleName)}<span style="color:var(--text-muted);font-size:12px;">(${AdminUI.esc(r.roleKey)})</span></label>`).join('');
+        document.getElementById('a-roles').innerHTML = roleHtml || '<span style="color:var(--text-muted);font-size:13px;">暂无可分配角色</span>';
+        const deptHtml = '<option value="">请选择部门</option>' + DEPT_LIST.map(d => `<option value="${d.id}">${'　'.repeat(d.depth)}${AdminUI.esc(d.deptName || d.name)}${d.status === 0 ? '（停用）' : ''}</option>`).join('');
+        document.getElementById('a-dept').innerHTML = deptHtml;
+        document.getElementById('f-dept').innerHTML = '<option value="">全部部门</option>' + DEPT_LIST.map(d => `<option value="${d.id}">${'　'.repeat(d.depth)}${AdminUI.esc(d.deptName || d.name)}</option>`).join('');
+      } catch (e) { }
+    }
+
+    async function loadAdmins(page) {
+      PAGE = page || PAGE;
+      const data = await AdminUI.get(AdminUI.API_BASE + '/permission/admins', { page: PAGE, page_size: SIZE, keyword: F.keyword, dept_id: F.deptId || undefined, status: F.status === '' ? undefined : F.status });
+      if (!data) return;
+      ADMINS = data.list || [];
+      const session = AdminUI.getSession();
+      const myName = session ? session.username : '';
+      const rows = ADMINS.map(u => {
+        const self = u.username === myName;
+        const rolesHtml = (u.roleNames || []).map((n, i) => `<span class="badge-tag ${badgeCls(i)}">${AdminUI.esc(n)}</span>`).join(' ') || '<span style="color:var(--text-muted);">-</span>';
+        let act = '';
+        if (AdminUI.can('permission:edit')) {
+          act += `<a class="action-link" onclick="openEditAdmin(${u.id})">编辑</a>`;
+          act += `<a class="action-link warning" onclick="resetPwd(${u.id})">重置密码</a>`;
+          if (!self) {
+            act += u.status === 1
+              ? `<a class="action-link warning" onclick="toggleStatus(${u.id},0)">禁用</a>`
+              : `<a class="action-link" onclick="toggleStatus(${u.id},1)">启用</a>`;
+          }
+        }
+        if (AdminUI.can('permission:delete') && !self) {
+          act += `<a class="action-link danger" onclick="removeAdmin(${u.id})">删除</a>`;
+        }
+        if (!act) act = '<span style="color:var(--text-muted);font-size:12px;">-</span>';
+        return `<tr>
+          <td style="font-weight:500;font-family:monospace;">${AdminUI.esc(u.username)}</td>
+          <td>${AdminUI.esc(u.realName || '-')}</td>
+          <td>${AdminUI.esc(u.phone || '-')}</td>
+          <td>${AdminUI.esc(u.email || '-')}</td>
+          <td>${AdminUI.esc(deptName(u.deptId))}</td>
+          <td>${rolesHtml}</td>
+          <td style="font-size:12px;color:var(--text-secondary);">${AdminUI.fmtTime(u.lastLoginTime)}</td>
+          <td>${u.status === 1 ? '<span class="badge-tag success">启用</span>' : '<span class="badge-tag danger">禁用</span>'}</td>
+          <td class="col-actions">${act}</td>
+        </tr>`;
+      }).join('');
+      document.getElementById('adminTbody').innerHTML = rows || `<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:40px 0;">暂无数据</td></tr>`;
+      const total = data.total || 0;
+      const totalPages = Math.max(1, Math.ceil(total / SIZE));
+      AdminUI.renderPagination('adminPagination', PAGE, totalPages, total, SIZE);
+    }
+
+    window.openCreateAdmin = function () {
+      EDIT_ID = null;
+      document.getElementById('adminModalTitle').textContent = '新增管理员';
+      document.getElementById('a-createFields').style.display = '';
+      document.getElementById('a-username').value = '';
+      document.getElementById('a-password').value = '';
+      document.getElementById('a-realName').value = '';
+      document.getElementById('a-phone').value = '';
+      document.getElementById('a-email').value = '';
+      document.getElementById('a-dept').value = '';
+      document.getElementById('a-status').checked = true;
+      document.querySelectorAll('#a-roles .role-cb').forEach(cb => { cb.checked = false; });
+      document.querySelector('#adminModal .modal-footer .btn-primary').textContent = '确认创建';
+      AdminUI.openModal('adminModal');
+    };
+
+    window.openEditAdmin = async function (id) {
+      const d = await AdminUI.get(AdminUI.API_BASE + '/permission/admins/' + id);
+      if (!d) return;
+      EDIT_ID = d.id;
+      document.getElementById('adminModalTitle').textContent = '编辑管理员 - ' + (d.username || '');
+      document.getElementById('a-createFields').style.display = 'none';
+      document.getElementById('a-realName').value = d.realName || '';
+      document.getElementById('a-phone').value = d.phone || '';
+      document.getElementById('a-email').value = d.email || '';
+      document.getElementById('a-dept').value = d.deptId ? String(d.deptId) : '';
+      document.getElementById('a-status').checked = d.status === 1;
+      const roleIds = (d.roleIds || []).map(String);
+      document.querySelectorAll('#a-roles .role-cb').forEach(cb => { cb.checked = roleIds.indexOf(cb.value) !== -1; });
+      document.querySelector('#adminModal .modal-footer .btn-primary').textContent = '保存修改';
+      AdminUI.openModal('adminModal');
+    };
+
+    window.saveAdmin = async function () {
+      const realName = document.getElementById('a-realName').value.trim();
+      const phone = document.getElementById('a-phone').value.trim();
+      const email = document.getElementById('a-email').value.trim();
+      const deptVal = document.getElementById('a-dept').value;
+      const deptId = deptVal === '' ? null : parseInt(deptVal, 10);
+      const roleIds = Array.from(document.querySelectorAll('#a-roles .role-cb:checked')).map(cb => parseInt(cb.value, 10));
+      const status = document.getElementById('a-status').checked ? 1 : 0;
+      const payload = { real_name: realName, phone: phone, email: email, dept_id: deptId, status: status, role_ids: roleIds };
+      try {
+        if (EDIT_ID) {
+          await AdminUI.put(AdminUI.API_BASE + '/permission/admins/' + EDIT_ID, payload);
+          AdminUI.showToast('保存成功', 'success');
+        } else {
+          const username = document.getElementById('a-username').value.trim();
+          const password = document.getElementById('a-password').value;
+          if (username.length < 2) { AdminUI.showToast('登录账号至少2位', 'error'); return; }
+          if (password.length < 6) { AdminUI.showToast('初始密码至少6位', 'error'); return; }
+          payload.username = username;
+          payload.password = password;
+          await AdminUI.post(AdminUI.API_BASE + '/permission/admins', payload);
+          AdminUI.showToast('管理员创建成功', 'success');
+        }
+        AdminUI.closeModal('adminModal');
+        loadAdmins(1);
+      } catch (e) { }
+    };
+
+    window.resetPwd = async function (id) {
+      const v = window.prompt('请输入新密码（至少6位）');
+      if (v === null) return;
+      if (v.trim().length < 6) { AdminUI.showToast('密码至少6位', 'error'); return; }
+      try {
+        await AdminUI.put(AdminUI.API_BASE + '/permission/admins/' + id + '/reset-password', { new_password: v.trim() });
+        AdminUI.showToast('密码重置成功', 'success');
+      } catch (e) { }
+    };
+
+    window.toggleStatus = async function (id, status) {
+      try {
+        await AdminUI.put(AdminUI.API_BASE + '/permission/admins/' + id + '/status?status=' + status);
+        AdminUI.showToast(status === 1 ? '已启用' : '已禁用', 'success');
+        loadAdmins(PAGE);
+      } catch (e) { }
+    };
+
+    window.removeAdmin = async function (id) {
+      const row = ADMINS.filter(u => u.id === id)[0];
+      const name = row ? row.username : id;
+      if (!window.confirm('确认删除管理员「' + name + '」？')) return;
+      try {
+        await AdminUI.del(AdminUI.API_BASE + '/permission/admins/' + id);
+        AdminUI.showToast('删除成功', 'success');
+        loadAdmins(PAGE);
+      } catch (e) { }
+    };
+
+    window.searchAdmin = function () {
+      F.keyword = document.getElementById('f-keyword').value.trim();
+      F.deptId = document.getElementById('f-dept').value;
+      F.status = document.getElementById('f-status').value;
+      loadAdmins(1);
+    };
+
+    window.resetAdmin = function () {
+      document.getElementById('f-keyword').value = '';
+      document.getElementById('f-dept').value = '';
+      document.getElementById('f-status').value = '';
+      F = { keyword: '', deptId: '', status: '' };
+      loadAdmins(1);
+    };
+
+    (async function () {
+      const ok = await AdminUI.initPage({ key: 'admin', breadcrumb: ['权限管理', '管理员管理'], need: ['permission:list'] });
+      if (!ok) return;
+      if (!AdminUI.can('permission:add')) document.getElementById('btnAddAdmin').style.display = 'none';
+      await loadOptions();
+      const pg = document.getElementById('adminPagination');
+      pg.addEventListener('click', function (e) {
+        const b = e.target.closest('button[data-page]');
+        if (!b || b.disabled) return;
+        const p = parseInt(b.getAttribute('data-page'), 10);
+        if (p >= 1) loadAdmins(p);
+      });
+      pg.addEventListener('change', function (e) {
+        if (e.target.classList.contains('page-size-select')) {
+          SIZE = parseInt(e.target.value, 10);
+          loadAdmins(1);
+        }
+      });
+      const debouncedSearch = AdminUI.debounce(searchAdmin, 300);
+      document.getElementById('f-keyword').addEventListener('input', debouncedSearch);
+      document.getElementById('f-dept').addEventListener('change', searchAdmin);
+      document.getElementById('f-status').addEventListener('change', searchAdmin);
+      loadAdmins(1);
+    })();
+  </script>
+</body>
+</html>

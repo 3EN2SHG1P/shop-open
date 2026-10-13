@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>售后管理 - 商城后台管理系统</title>
+  <link rel="stylesheet" href="../../css/common.css?v=20260904e">
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main-wrapper">
+      <header class="header" id="header"></header>
+      <main class="content">
+        <div class="page-header">
+          <div><h1 class="page-title">售后管理</h1><p class="page-desc">处理会员的仅退款与退货退款申请</p></div>
+        </div>
+        <div class="stats-grid stats-grid--compact" id="statCards"></div>
+        <div class="filter-bar">
+          <div class="filter-row">
+            <div class="filter-item"><label>搜索</label><input type="text" id="fKeyword" class="form-control" placeholder="售后单号/订单号/会员"></div>
+            <div class="filter-item"><label>售后类型</label><select id="fType" class="form-control"><option value="">全部</option><option value="1">仅退款</option><option value="2">退货退款</option></select></div>
+            <div class="filter-item"><label>售后状态</label><select id="fStatus" class="form-control"><option value="">全部</option><option value="1">待审核</option><option value="2">处理中</option><option value="3">已完成</option><option value="4">已拒绝</option></select></div>
+            <div class="filter-actions"><button class="btn btn-primary" onclick="resetSearch()">重置</button></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body no-padding">
+            <div class="table-wrapper">
+              <table class="table">
+                <thead><tr><th>售后单号</th><th>关联订单</th><th>商品</th><th>会员</th><th>类型</th><th>申请金额</th><th>状态</th><th>申请时间</th><th class="col-actions">操作</th></tr></thead>
+                <tbody id="asBody"></tbody>
+              </table>
+            </div>
+            <div class="pagination" id="asPagination"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="auditModal">
+    <div class="modal">
+      <div class="modal-header"><h3 class="modal-title">售后审核</h3><button class="modal-close" data-close-modal="auditModal">✕</button></div>
+      <div class="modal-body">
+        <div class="alert alert-warning" id="auditTypeWarn">请根据会员申请与实际凭证确认处理结果。</div>
+        <div class="form-group"><label class="form-label">售后单号</label><input type="text" id="auditNo" class="form-control" readonly></div>
+        <div class="form-group"><label class="form-label">关联订单</label><input type="text" id="auditOrderNo" class="form-control" readonly></div>
+        <div class="form-group"><label class="form-label">会员</label><input type="text" id="auditMember" class="form-control" readonly></div>
+        <div class="form-group"><label class="form-label">售后类型 / 金额</label><input type="text" id="auditTypeAmount" class="form-control" readonly></div>
+        <div class="form-group"><label class="form-label">申请原因</label><textarea id="auditReason" class="form-control" rows="3" readonly></textarea></div>
+        <div class="form-group"><label class="form-label">审核结果 <span class="required">*</span></label>
+          <div style="display:flex;gap:24px;padding:6px 0;">
+            <label class="radio-label"><input type="radio" name="auditDecision" value="1" checked> 同意</label>
+            <label class="radio-label"><input type="radio" name="auditDecision" value="0"> 拒绝</label>
+          </div>
+        </div>
+        <div class="form-group"><label class="form-label">处理说明</label><textarea id="auditNote" class="form-control" rows="3" placeholder="请输入处理说明（选填）"></textarea></div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-close-modal="auditModal">取消</button><button class="btn btn-primary" onclick="saveAudit()">提交审核</button></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="detailModal">
+    <div class="modal">
+      <div class="modal-header"><h3 class="modal-title">售后详情</h3><button class="modal-close" data-close-modal="detailModal">✕</button></div>
+      <div class="modal-body">
+        <div class="detail-grid">
+          <div class="detail-item"><span class="detail-label">售后单号：</span><span class="detail-value" id="dNo"></span></div>
+          <div class="detail-item"><span class="detail-label">关联订单：</span><span class="detail-value" id="dOrderNo"></span></div>
+          <div class="detail-item"><span class="detail-label">商品：</span><span class="detail-value" id="dGoods"></span></div>
+          <div class="detail-item"><span class="detail-label">会员：</span><span class="detail-value" id="dMember"></span></div>
+          <div class="detail-item"><span class="detail-label">类型：</span><span class="detail-value" id="dType"></span></div>
+          <div class="detail-item"><span class="detail-label">金额：</span><span class="detail-value amount" id="dAmount"></span></div>
+          <div class="detail-item" style="grid-column:span 2;"><span class="detail-label">申请原因：</span><span class="detail-value" id="dReason"></span></div>
+          <div class="detail-item" style="grid-column:span 2;"><span class="detail-label">处理说明：</span><span class="detail-value" id="dNote"></span></div>
+          <div class="detail-item"><span class="detail-label">退货运单：</span><span class="detail-value" id="dReturnLogistics"></span></div>
+          <div class="detail-item"><span class="detail-label">处理时间：</span><span class="detail-value" id="dHandleTime"></span></div>
+          <div class="detail-item"><span class="detail-label">状态：</span><span class="detail-value" id="dStatus"></span></div>
+          <div class="detail-item"><span class="detail-label">申请时间：</span><span class="detail-value" id="dTime"></span></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-close-modal="detailModal">关闭</button></div>
+    </div>
+  </div>
+
+  <script src="../../js/common.js?v=20260904e"></script>
+  <script>
+    const API = AdminUI.API_BASE;
+    let SIZE = 10;
+    const TYPE_TEXT = { 1: '仅退款', 2: '退货退款' };
+    const STATUS_TEXT = { 1: '待审核', 2: '处理中', 3: '已完成', 4: '已拒绝' };
+    const STATUS_CLS = { 1: 'warning', 2: 'info', 3: 'success', 4: 'default' };
+    const STATUS_DEFS = [
+      { v: '', label: '全部', c: 'all', cls: '' },
+      { v: '1', label: '待审核', c: '1', cls: 'warning' },
+      { v: '2', label: '处理中', c: '2', cls: 'info' },
+      { v: '3', label: '已完成', c: '3', cls: 'success' },
+      { v: '4', label: '已拒绝', c: '4', cls: 'default' }
+    ];
+    const F = { keyword: '', type: '', status: '' };
+    const AS_CACHE = {};
+    let PAGE = 1;
+    let CUR = null;
+
+    function esc(v) { return AdminUI.escHtml(v === null || v === undefined ? '' : String(v)); }
+    function money(v) { return (Number(v || 0)).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    function badge(status) { return '<span class="badge-tag ' + (STATUS_CLS[status] || 'default') + '">' + (STATUS_TEXT[status] || '') + '</span>'; }
+    function badgeType(type) { return type === 1 ? '<span class="badge-tag">仅退款</span>' : '<span class="badge-tag primary">退货退款</span>'; }
+
+    const STAT_PALETTE = {
+      '':  { label: '全部',   bg: '#f5f3ff', fg: '#6d28d9', soft: '#8b5cf6' },
+      '1': { label: '待审核', bg: '#fffbeb', fg: '#d97706', soft: '#f59e0b' },
+      '2': { label: '处理中', bg: '#f0f9ff', fg: '#0284c7', soft: '#38bdf8' },
+      '3': { label: '已完成', bg: '#ecfdf5', fg: '#059669', soft: '#34d399' },
+      '4': { label: '已拒绝', bg: '#fff1f2', fg: '#e11d48', soft: '#fb7185' }
+    };
+
+    function renderCards(counts) {
+      document.getElementById('statCards').innerHTML = STATUS_DEFS.map(function (s) {
+        const n = counts[s.c] || 0;
+        const active = String(F.status) === s.v;
+        const p = STAT_PALETTE[s.v] || STAT_PALETTE[''];
+        return '<div class="stat-card ' + (active ? 'is-active' : '') + '" style="--c:' + p.soft + ';cursor:pointer;background:' + p.bg + ';" onclick="filterBy(\'' + s.v + '\')">' +
+          '<div class="stat-value" style="color:' + p.fg + ';">' + n + '</div>' +
+          '<div class="stat-label" style="color:' + p.soft + ';">' + p.label + '</div></div>';
+      }).join('');
+    }
+
+    function filterBy(v) {
+      F.status = v;
+      document.getElementById('fStatus').value = v;
+      loadList(1);
+    }
+
+    function loadList(page) {
+      PAGE = page || 1;
+      const params = {
+        page: PAGE, page_size: SIZE,
+        keyword: F.keyword || undefined,
+        type: F.type === '' ? undefined : F.type,
+        status: F.status === '' ? undefined : F.status
+      };
+      AdminUI.get(API + '/after-sales', params).then(function (data) {
+        if (!data) return;
+        renderCards(data.statusCounts || { all: 0 });
+        renderRows(data.list || [], data.total || 0);
+      });
+    }
+
+    function renderRows(list, total) {
+      const canAudit = AdminUI.can('order:audit');
+      const rows = list.map(function (a) {
+        AS_CACHE[a.id] = a;
+        let acts = '<a class="action-link" onclick="showDetail(' + a.id + ')">详情</a>';
+        if (a.status === 1 && canAudit) acts += '<a class="action-link warning" onclick="openAudit(' + a.id + ')">审核</a>';
+        if (a.status === 2 && a.type === 2 && canAudit) acts += '<a class="action-link success" onclick="confirmReceipt(' + a.id + ')">确认收货</a>';
+        return '<tr>' +
+          '<td style="font-family:monospace;font-size:12px;color:var(--primary);cursor:pointer;" onclick="showDetail(' + a.id + ')">' + esc(a.afterSaleNo) + '</td>' +
+          '<td style="font-family:monospace;font-size:12px;">' + esc(a.orderNo) + '</td>' +
+          '<td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;" title="' + esc(a.goodsName) + '">' + esc(a.goodsName) + '</td>' +
+          '<td style="font-size:12px;">' + esc(a.memberName) + '</td>' +
+          '<td>' + badgeType(a.type) + '</td>' +
+          '<td class="amount">¥ ' + money(a.amount) + '</td>' +
+          '<td>' + badge(a.status) + '</td>' +
+          '<td style="font-size:12px;color:var(--text-secondary);">' + AdminUI.fmtTime(a.createdAt) + '</td>' +
+          '<td class="col-actions">' + acts + '</td>' +
+          '</tr>';
+      }).join('');
+      document.getElementById('asBody').innerHTML = rows || '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:40px 0;">暂无数据</td></tr>';
+      AdminUI.renderPagination('asPagination', PAGE, Math.max(1, Math.ceil(total / SIZE)), total, SIZE);
+    }
+
+    function doSearch() {
+      F.keyword = document.getElementById('fKeyword').value.trim();
+      F.type = document.getElementById('fType').value;
+      F.status = document.getElementById('fStatus').value;
+      loadList(1);
+    }
+
+    function resetSearch() {
+      document.getElementById('fKeyword').value = '';
+      document.getElementById('fType').value = '';
+      document.getElementById('fStatus').value = '';
+      F.keyword = ''; F.type = ''; F.status = '';
+      loadList(1);
+    }
+
+    function openAudit(id) {
+      const a = AS_CACHE[id];
+      if (!a) { AdminUI.showToast('数据未加载，请刷新列表后重试', 'warning'); return; }
+      CUR = a;
+      document.getElementById('auditNo').value = a.afterSaleNo;
+      document.getElementById('auditOrderNo').value = a.orderNo;
+      document.getElementById('auditMember').value = a.memberName;
+      document.getElementById('auditTypeAmount').value = (a.typeText || '') + ' / ¥ ' + money(a.amount);
+      document.getElementById('auditReason').value = a.reason || '';
+      document.getElementById('auditNote').value = '';
+      const r = document.querySelector('input[name="auditDecision"][value="1"]');
+      if (r) r.checked = true;
+      AdminUI.openModal('auditModal');
+    }
+
+    async function saveAudit() {
+      const decision = document.querySelector('input[name="auditDecision"]:checked');
+      if (!decision) { AdminUI.showToast('请选择审核结果', 'warning'); return; }
+      const agree = decision.value === '1';
+      const note = document.getElementById('auditNote').value.trim();
+      try {
+        await AdminUI.post(API + '/after-sales/' + CUR.id + '/audit', { agree: agree, handleNote: note });
+        AdminUI.closeModal('auditModal');
+        AdminUI.showToast(agree ? '审核已通过' : '已拒绝该售后申请', 'success');
+        loadList(PAGE);
+      } catch (e) { }
+    }
+
+    function confirmReceipt(id) {
+      AdminUI.confirmAction('确认已收到退货并同意退款吗？确认后该售后完成，订单将同步结束。', async function () {
+        try {
+          await AdminUI.post(API + '/after-sales/' + id + '/confirm-receipt');
+          AdminUI.showToast('确认收货成功，退款完成', 'success');
+          loadList(PAGE);
+        } catch (e) { }
+      });
+    }
+
+    function showDetail(id) {
+      const a = AS_CACHE[id];
+      if (!a) { AdminUI.showToast('数据未加载，请刷新列表后重试', 'warning'); return; }
+        document.getElementById('dNo').textContent = a.afterSaleNo;
+        document.getElementById('dOrderNo').textContent = a.orderNo;
+        document.getElementById('dGoods').textContent = a.goodsName || '—';
+        document.getElementById('dMember').textContent = a.memberName;
+        document.getElementById('dType').textContent = a.typeText;
+        document.getElementById('dAmount').textContent = '¥ ' + money(a.amount);
+        document.getElementById('dReason').textContent = a.reason || '—';
+        document.getElementById('dNote').textContent = a.handleNote || '—';
+        document.getElementById('dReturnLogistics').textContent = a.returnLogisticsNo ? (a.returnLogisticsCompany || '') + ' ' + a.returnLogisticsNo : '—';
+        document.getElementById('dHandleTime').textContent = AdminUI.fmtTime(a.handleTime);
+      document.getElementById('dStatus').textContent = a.statusText;
+      document.getElementById('dTime').textContent = AdminUI.fmtTime(a.createdAt);
+      AdminUI.openModal('detailModal');
+    }
+
+    (async function () {
+      const ok = await AdminUI.initPage({ key: 'after-sale', breadcrumb: ['订单管理', '售后管理'], need: ['order:list'] });
+      if (!ok) return;
+      const pg = document.getElementById('asPagination');
+      pg.addEventListener('click', function (e) {
+        const b = e.target.closest('button[data-page]');
+        if (!b || b.disabled) return;
+        loadList(Number(b.getAttribute('data-page')));
+      });
+      const debouncedSearch = AdminUI.debounce(doSearch, 300);
+      document.getElementById('fKeyword').addEventListener('input', debouncedSearch);
+      document.getElementById('fType').addEventListener('change', doSearch);
+      document.getElementById('fStatus').addEventListener('change', doSearch);
+      pg.addEventListener('change', function (e) {
+        if (e.target.classList.contains('page-size-select')) {
+          SIZE = parseInt(e.target.value, 10);
+          loadList(1);
+        }
+      });
+      await loadList(1);
+    })();
+  </script>
+</body>
+</html>

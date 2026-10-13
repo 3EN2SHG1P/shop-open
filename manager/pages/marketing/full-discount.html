@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>满减满折 - 商城后台管理系统</title>
+  <link rel="stylesheet" href="../../css/common.css?v=20260904e">
+  <style>
+    #fullModal .modal { width: 640px; }
+    #fullModal .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main-wrapper">
+      <header class="header" id="header"></header>
+      <main class="content">
+        <div class="page-header">
+          <div><h1 class="page-title">满减满折</h1><p class="page-desc">满额立减或打折促销，可按范围与叠加上限配置</p></div>
+          <div class="btn-group"><button class="btn btn-primary" id="btnAdd" onclick="openCreate()" style="display:none;">➕ 新增活动</button></div>
+        </div>
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-body" style="padding:12px 20px;">
+            <div class="filter-bar">
+              <input type="text" class="form-control filter-input" id="fKeyword" placeholder="活动名称">
+              <select class="form-control filter-input" id="fType" style="width:120px;"><option value="">活动类型</option><option value="1">满减</option><option value="2">满折</option></select>
+              <div class="filter-actions"><button class="btn btn-primary" onclick="resetSearch()">重置</button></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body no-padding">
+            <div class="table-wrapper">
+              <table class="table">
+                <thead><tr><th>活动名称</th><th>类型</th><th>优惠内容</th><th>适用范围</th><th>可叠加</th><th>活动时间</th><th>状态</th><th class="col-actions">操作</th></tr></thead>
+                <tbody id="fullBody"></tbody>
+              </table>
+            </div>
+            <div id="fullPagination" class="pagination"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="fullModal">
+    <div class="modal">
+      <div class="modal-header"><h3 class="modal-title" id="fullModalTitle">新增满减活动</h3><button class="modal-close" data-close-modal="fullModal">✕</button></div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group" style="grid-column:span 2;"><label class="form-label">活动名称 <span class="required">*</span></label><input type="text" id="fName" class="form-control" maxlength="100" placeholder="如：全场满200减30"></div>
+          <div class="form-group"><label class="form-label">活动类型</label><select id="fKind" class="form-control" onchange="syncKind()"><option value="1">满减</option><option value="2">满折</option></select></div>
+          <div class="form-group"><label class="form-label">满额条件(元)</label><input type="number" id="fThreshold" class="form-control" min="0" step="0.01"></div>
+          <div class="form-group"><label class="form-label">优惠内容</label><input type="number" id="fValue" class="form-control" min="0" step="0.01" placeholder="满减金额 / 折扣折数"></div>
+          <div class="form-group"><label class="form-label">适用范围</label><select id="fScope" class="form-control"><option value="1">全部商品</option><option value="2">指定分类</option><option value="3">指定商品</option></select></div>
+          <div class="form-group"><label class="form-label">可叠加平台券</label><select id="fStack" class="form-control"><option value="0">否</option><option value="1">是</option></select></div>
+          <div class="form-group" style="grid-column:span 2;" id="scopeGroup"><label class="form-label">分类/商品 ID</label><input type="text" id="fScopeIds" class="form-control" placeholder="多个用英文逗号分隔"></div>
+          <div class="form-group"><label class="form-label">开始时间 <span class="required">*</span></label><input type="datetime-local" id="fStart" class="form-control"></div>
+          <div class="form-group"><label class="form-label">结束时间 <span class="required">*</span></label><input type="datetime-local" id="fEnd" class="form-control"></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-close-modal="fullModal">取消</button><button class="btn btn-primary" onclick="saveFull()">保存</button></div>
+    </div>
+  </div>
+
+  <script src="../../js/common.js?v=20260904e"></script>
+  <script>
+    const API = AdminUI.API_BASE;
+    let EDIT_ID = null;
+    let PAGE = 1;
+    let SIZE = 10;
+    const F = { keyword: '', type: '' };
+    function esc(v) { return AdminUI.escHtml(v === null || v === undefined ? '' : String(v)); }
+    function money(v) { return (Number(v || 0)).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    function kindBadge(t) { return t === 1 ? '<span class="badge-tag primary">满减</span>' : '<span class="badge-tag warning">满折</span>'; }
+    function stageBadge(st) { return st === 1 ? '<span class="badge-tag info">待开始</span>' : (st === 2 ? '<span class="badge-tag success">进行中</span>' : '<span class="badge-tag default">已结束</span>'); }
+
+    function benefitText(r) {
+      const cond = '满 ¥' + money(r.threshold);
+      const val = r.type === 1 ? ('立减 ¥' + money(r.discountValue)) : (Number(r.discountValue || 0) + ' 折');
+      return '<div style="font-weight:600;">' + cond + ' ' + val + '</div>';
+    }
+
+    function doSearch() {
+      F.keyword = document.getElementById('fKeyword').value.trim();
+      F.type = document.getElementById('fType').value;
+      loadFulls(1);
+    }
+    function resetSearch() {
+      document.getElementById('fKeyword').value = ''; document.getElementById('fType').value = '';
+      F.keyword = ''; F.type = ''; loadFulls(1);
+    }
+
+    function loadFulls(page) {
+      PAGE = page || 1;
+      const params = { page: PAGE, page_size: SIZE };
+      if (F.keyword) params.keyword = F.keyword;
+      if (F.type !== '') params.type = F.type;
+      AdminUI.get(API + '/full-discounts', params).then(function (data) {
+        if (!data) return;
+        const rows = (data.list || []).map(function (a) {
+          let scope = esc(a.scopeText || '');
+          if ((a.scope === 2 || a.scope === 3) && a.scopeIds) scope += '<div style="font-size:11px;color:var(--text-muted);">ID:' + esc(a.scopeIds) + '</div>';
+          return '<tr>' +
+            '<td style="font-weight:600;">' + esc(a.name) + '</td>' +
+            '<td>' + kindBadge(a.type) + '</td>' +
+            '<td>' + benefitText(a) + '</td>' +
+            '<td style="font-size:12px;">' + scope + '</td>' +
+            '<td>' + (a.isStackable ? '<span class="badge-tag success">是</span>' : '<span class="badge-tag default">否</span>') + '</td>' +
+            '<td style="font-size:12px;">' + esc((a.startTime || '').slice(0, 16)) + '<br><span style="color:var(--text-muted);">至 ' + esc((a.endTime || '').slice(0, 16)) + '</span></td>' +
+            '<td>' + stageBadge(a.status) + '</td>' +
+            '<td class="col-actions">' + (AdminUI.can('marketing:edit') ? '<a class="action-link" onclick="openEdit(' + a.id + ')">编辑</a>' : '<span style="color:var(--text-muted);">-</span>') + '</td></tr>';
+        }).join('');
+        document.getElementById('fullBody').innerHTML = rows || '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:40px 0;">暂无满减活动</td></tr>';
+        AdminUI.renderPagination('fullPagination', PAGE, Math.max(1, Math.ceil(data.total / SIZE)), data.total, SIZE);
+      });
+    }
+
+    function syncKind() {
+      const el = document.getElementById('fValue');
+      el.placeholder = document.getElementById('fKind').value === '1' ? '立减金额' : '折扣(如 8.5 表示 85 折)';
+    }
+    function syncScope() {
+      document.getElementById('scopeGroup').style.display = document.getElementById('fScope').value === '1' ? 'none' : '';
+    }
+
+    function openCreate() {
+      EDIT_ID = null;
+      document.getElementById('fullModalTitle').textContent = '新增满减活动';
+      ['fName', 'fThreshold', 'fValue', 'fScopeIds', 'fStart', 'fEnd'].forEach(function (id) { document.getElementById(id).value = ''; });
+      document.getElementById('fKind').value = '1';
+      document.getElementById('fScope').value = '1';
+      document.getElementById('fStack').value = '0';
+      syncKind(); syncScope();
+      AdminUI.openModal('fullModal');
+    }
+
+    function openEdit(id) {
+      AdminUI.findRow(API + '/full-discounts', id).then(function (a) {
+        if (!a) return;
+        EDIT_ID = id;
+        document.getElementById('fullModalTitle').textContent = '编辑满减活动';
+        document.getElementById('fName').value = a.name;
+        document.getElementById('fKind').value = String(a.type);
+        document.getElementById('fThreshold').value = a.threshold;
+        document.getElementById('fValue').value = a.discountValue;
+        document.getElementById('fScope').value = String(a.scope);
+        document.getElementById('fScopeIds').value = a.scopeIds || '';
+        document.getElementById('fStack').value = String(a.isStackable || 0);
+        document.getElementById('fStart').value = (a.startTime || '').slice(0, 16);
+        document.getElementById('fEnd').value = (a.endTime || '').slice(0, 16);
+        syncKind(); syncScope();
+        AdminUI.openModal('fullModal');
+      });
+    }
+
+    async function saveFull() {
+      const name = document.getElementById('fName').value.trim();
+      const kind = Number(document.getElementById('fKind').value);
+      const threshold = Number(document.getElementById('fThreshold').value || 0);
+      const value = Number(document.getElementById('fValue').value || 0);
+      const scope = Number(document.getElementById('fScope').value);
+      const start = document.getElementById('fStart').value;
+      const end = document.getElementById('fEnd').value;
+      if (!name) { AdminUI.showToast('请输入活动名称', 'warning'); return; }
+      if (!start || !end || end.replace('T', ' ') <= start.replace('T', ' ')) { AdminUI.showToast('请选择有效的活动时间', 'warning'); return; }
+      if (kind === 1 && value <= 0) { AdminUI.showToast('立减金额必须大于 0', 'warning'); return; }
+      if (kind === 2 && (value <= 0 || value >= 10)) { AdminUI.showToast('折扣需大于 0 且小于 10', 'warning'); return; }
+      const body = {
+        name: name, type: kind, threshold: threshold, discountValue: value,
+        scope: scope, scopeIds: document.getElementById('fScopeIds').value.trim(),
+        startTime: start.replace('T', ' '), endTime: end.replace('T', ' '),
+        isStackable: Number(document.getElementById('fStack').value)
+      };
+      const url = API + '/full-discounts' + (EDIT_ID ? '/' + EDIT_ID : '');
+      try {
+        if (EDIT_ID) await AdminUI.put(url, body); else await AdminUI.post(url, body);
+        AdminUI.closeModal('fullModal');
+        AdminUI.showToast(EDIT_ID ? '活动已更新' : '活动已新增', 'success');
+        loadFulls(EDIT_ID ? PAGE : 1);
+      } catch (e) { }
+    }
+
+    (async function () {
+      const ok = await AdminUI.initPage({ key: 'full-discount', breadcrumb: ['营销管理', '满减满折'], need: ['marketing:list'] });
+      if (!ok) return;
+      if (AdminUI.can('marketing:add')) document.getElementById('btnAdd').style.display = '';
+      document.getElementById('fullPagination').addEventListener('click', function (e) {
+        const b = e.target.closest('button[data-page]');
+        if (!b || b.disabled) return;
+        loadFulls(Number(b.getAttribute('data-page')));
+      });
+      const debouncedSearch = AdminUI.debounce(doSearch, 300);
+      document.getElementById('fKeyword').addEventListener('input', debouncedSearch);
+      document.getElementById('fType').addEventListener('change', doSearch);
+      document.getElementById('fullPagination').addEventListener('change', function (e) {
+        if (e.target.classList.contains('page-size-select')) {
+          SIZE = parseInt(e.target.value, 10);
+          loadFulls(1);
+        }
+      });
+      loadFulls(1);
+    })();
+  </script>
+</body>
+</html>

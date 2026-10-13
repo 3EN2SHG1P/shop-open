@@ -1,0 +1,16 @@
+# 统一换行：仓库内一律 LF。Windows 贡献者若不设置，容易提交出整屏
+# 「明明只改一行、diff 却全文件」的变更（.editorconfig 只对编辑器生效，管不住 git）。
+* text=auto eol=lf
+
+# 二进制文件必须显式声明，禁止参与换行转换与 diff
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.pdf binary
+*.zip binary
+*.pyd binary
+*.so binary
+*.dll binary

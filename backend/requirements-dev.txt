@@ -1,0 +1,5 @@
+# 开发/测试依赖（运行本项目不需要安装）
+# 安装方式：pip install -r requirements.txt -r requirements-dev.txt
+-r requirements.txt
+httpx>=0.28.1,<1.0.0
+pytest>=9.1.1,<10.0.0

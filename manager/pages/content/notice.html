@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>公告通知 - 商城后台管理系统</title>
+  <link rel="stylesheet" href="../../css/common.css?v=20260904e">
+  <style>
+    #noticeModal .modal { width: 700px; }
+    #noticeModal .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+    #noticeModal .form-group-full { grid-column: span 2; }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main-wrapper">
+      <header class="header" id="header"></header>
+      <main class="content">
+        <div class="page-header">
+          <div><h1 class="page-title">公告通知</h1><p class="page-desc">发布与撤回商城公告，可按会员等级定向推送</p></div>
+          <div class="btn-group"><button class="btn btn-primary" id="btnAdd" onclick="openCreate()" style="display:none;">➕ 发布公告</button></div>
+        </div>
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-body" style="padding:12px 20px;">
+            <div class="filter-bar">
+              <input type="text" class="form-control filter-input" id="fKeyword" placeholder="公告标题">
+              <select class="form-control filter-input" id="fStatus" style="width:120px;"><option value="">发布状态</option><option value="1">已发布</option><option value="0">草稿</option></select>
+              <div class="filter-actions"><button class="btn btn-primary" onclick="resetSearch()">重置</button></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body no-padding">
+            <div class="table-wrapper">
+              <table class="table">
+                <thead><tr><th>公告标题</th><th>目标人群</th><th>发布时间</th><th>状态</th><th class="col-actions">操作</th></tr></thead>
+                <tbody id="noticeBody"></tbody>
+              </table>
+            </div>
+            <div id="noticePagination" class="pagination"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="noticeModal">
+    <div class="modal">
+      <div class="modal-header"><h3 class="modal-title" id="noticeModalTitle">发布公告</h3><button class="modal-close" data-close-modal="noticeModal">✕</button></div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group form-group-full"><label class="form-label">公告标题 <span class="required">*</span></label><input type="text" id="nTitle" class="form-control" maxlength="200"></div>
+          <div class="form-group"><label class="form-label">目标人群</label><select id="nTarget" class="form-control" onchange="syncTarget()"><option value="0">全部会员</option><option value="1">指定等级</option></select></div>
+          <div class="form-group" id="levelGroup" style="display:none;"><label class="form-label">指定等级</label><select id="nLevel" class="form-control"></select></div>
+          <div class="form-group"><label class="form-label">发布状态</label><select id="nStatus" class="form-control"><option value="1">发布</option><option value="0">存草稿</option></select></div>
+          <div class="form-group"><label class="form-label">发布时间</label><input type="datetime-local" id="nPublish" class="form-control"></div>
+          <div class="form-group form-group-full"><label class="form-label">公告内容 <span class="required">*</span></label><textarea id="nContent" class="form-control" rows="8" placeholder="支持 HTML 内容"></textarea></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-close-modal="noticeModal">取消</button><button class="btn btn-primary" onclick="saveNotice()">保存</button></div>
+    </div>
+  </div>
+
+  <script src="../../js/common.js?v=20260904e"></script>
+  <script>
+    const API = AdminUI.API_BASE;
+    let EDIT_ID = null;
+    let PAGE = 1;
+    let SIZE = 10;
+    const F = { keyword: '', status: '' };
+    let LEVELS = [];
+    function esc(v) { return AdminUI.escHtml(v === null || v === undefined ? '' : String(v)); }
+    function levelName(id) { const l = LEVELS.filter(function (x) { return x.id === id; })[0]; return l ? l.name : '指定等级'; }
+
+    function loadLevels() {
+      AdminUI.get(API + '/content/level-options').then(function (list) {
+        LEVELS = list || [];
+        document.getElementById('nLevel').innerHTML = LEVELS.map(function (l) {
+          return '<option value="' + l.id + '">' + esc(l.name) + '</option>';
+        }).join('');
+      }).catch(function () { });
+    }
+
+    function syncTarget() {
+      document.getElementById('levelGroup').style.display = document.getElementById('nTarget').value === '1' ? '' : 'none';
+    }
+
+    function doSearch() {
+      F.keyword = document.getElementById('fKeyword').value.trim();
+      F.status = document.getElementById('fStatus').value;
+      loadNotices(1);
+    }
+    function resetSearch() {
+      document.getElementById('fKeyword').value = '';
+      document.getElementById('fStatus').value = '';
+      F.keyword = ''; F.status = ''; loadNotices(1);
+    }
+
+    function loadNotices(page) {
+      PAGE = page || 1;
+      const params = { page: PAGE, page_size: SIZE };
+      if (F.keyword) params.keyword = F.keyword;
+      if (F.status !== '') params.status = F.status;
+      AdminUI.get(API + '/notices', params).then(function (data) {
+        if (!data) return;
+        const rows = (data.list || []).map(function (a) {
+          return '<tr>' +
+            '<td style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;">' + esc(a.title) + '</td>' +
+            '<td>' + (a.target === 1 ? '<span class="badge-tag purple">' + esc(levelName(a.targetLevelId)) + '</span>' : '<span class="badge-tag primary">全部会员</span>') + '</td>' +
+            '<td style="font-size:12px;">' + esc(a.publishTime || '—') + '</td>' +
+            '<td>' + (a.status === 1 ? '<span class="badge-tag success">已发布</span>' : '<span class="badge-tag default">草稿</span>') + '</td>' +
+            '<td class="col-actions">' + actLinks(a) + '</td></tr>';
+        }).join('');
+        document.getElementById('noticeBody').innerHTML = rows || '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:40px 0;">暂无公告</td></tr>';
+        AdminUI.renderPagination('noticePagination', PAGE, Math.max(1, Math.ceil(data.total / SIZE)), data.total, SIZE);
+      });
+    }
+
+    function actLinks(a) {
+      let h = '';
+      if (AdminUI.can('content:edit')) h += '<a class="action-link" onclick="openEdit(' + a.id + ')">编辑</a>';
+      if (AdminUI.can('content:edit')) {
+        if (a.status === 1) h += '<a class="action-link warning" onclick="changeStatus(' + a.id + ',0)">撤回</a>';
+        else h += '<a class="action-link" onclick="changeStatus(' + a.id + ',1)">发布</a>';
+      }
+      if (AdminUI.can('content:delete')) h += '<a class="action-link danger" onclick="removeNotice(' + a.id + ')">删除</a>';
+      return h || '<span style="color:var(--text-muted);">-</span>';
+    }
+
+    function openCreate() {
+      EDIT_ID = null;
+      document.getElementById('noticeModalTitle').textContent = '发布公告';
+      document.getElementById('nTitle').value = '';
+      document.getElementById('nTarget').value = '0';
+      document.getElementById('nStatus').value = '1';
+      document.getElementById('nPublish').value = '';
+      document.getElementById('nContent').value = '';
+      syncTarget();
+      AdminUI.openModal('noticeModal');
+    }
+
+    function openEdit(id) {
+      AdminUI.findRow(API + '/notices', id).then(function (a) {
+        if (!a) return;
+        EDIT_ID = id;
+        document.getElementById('noticeModalTitle').textContent = '编辑公告';
+        document.getElementById('nTitle').value = a.title;
+        document.getElementById('nTarget').value = String(a.target);
+        document.getElementById('nLevel').value = a.targetLevelId ? String(a.targetLevelId) : '';
+        document.getElementById('nStatus').value = String(a.status);
+        document.getElementById('nPublish').value = (a.publishTime || '').slice(0, 16);
+        document.getElementById('nContent').value = a.content || '';
+        syncTarget();
+        AdminUI.openModal('noticeModal');
+      });
+    }
+
+    async function saveNotice() {
+      const title = document.getElementById('nTitle').value.trim();
+      const content = document.getElementById('nContent').value.trim();
+      if (!title) { AdminUI.showToast('请输入公告标题', 'warning'); return; }
+      if (!content) { AdminUI.showToast('请输入公告内容', 'warning'); return; }
+      const pub = document.getElementById('nPublish').value;
+      const body = {
+        title: title, content: content,
+        target: Number(document.getElementById('nTarget').value),
+        targetLevelId: Number(document.getElementById('nTarget').value) === 1 ? Number(document.getElementById('nLevel').value || 0) : null,
+        status: Number(document.getElementById('nStatus').value),
+        publishTime: pub ? pub.replace('T', ' ') : null
+      };
+      const url = API + '/notices' + (EDIT_ID ? '/' + EDIT_ID : '');
+      try {
+        if (EDIT_ID) await AdminUI.put(url, body); else await AdminUI.post(url, body);
+        AdminUI.closeModal('noticeModal');
+        AdminUI.showToast(EDIT_ID ? '公告已更新' : '公告已保存', 'success');
+        loadNotices(EDIT_ID ? PAGE : 1);
+      } catch (e) { }
+    }
+
+    function changeStatus(id, status) {
+      const isPub = status === 1;
+      const tip = isPub ? '确定发布该公告？' : '确定撤回该公告？撤回后会员端将不再展示。';
+      AdminUI.confirmAction(tip, function () {
+        AdminUI.findRow(API + '/notices', id).then(function (a) {
+          if (!a) return;
+          const body = {
+            title: a.title, content: a.content || '', target: a.target,
+            targetLevelId: a.targetLevelId, publishTime: a.publishTime, status: status
+          };
+          return AdminUI.put(API + '/notices/' + id, body).then(function () {
+            AdminUI.showToast(isPub ? '公告已发布' : '公告已撤回', 'success');
+            loadNotices(PAGE);
+          });
+        }).catch(function () { });
+      });
+    }
+
+    function removeNotice(id) {
+      AdminUI.confirmAction('确定删除该公告？', function () {
+        AdminUI.del(API + '/notices/' + id).then(function () {
+          AdminUI.showToast('公告已删除', 'success');
+          loadNotices(PAGE);
+        }).catch(function () { });
+      });
+    }
+
+    (async function () {
+      const ok = await AdminUI.initPage({ key: 'notice', breadcrumb: ['内容管理', '公告通知'], need: ['content:list'] });
+      if (!ok) return;
+      if (AdminUI.can('content:add')) document.getElementById('btnAdd').style.display = '';
+      loadLevels();
+      document.getElementById('noticePagination').addEventListener('click', function (e) {
+        const b = e.target.closest('button[data-page]');
+        if (!b || b.disabled) return;
+        loadNotices(Number(b.getAttribute('data-page')));
+      });
+      const debouncedSearch = AdminUI.debounce(doSearch, 300);
+      document.getElementById('fKeyword').addEventListener('input', debouncedSearch);
+      document.getElementById('fStatus').addEventListener('change', doSearch);
+      document.getElementById('noticePagination').addEventListener('change', function (e) {
+        if (e.target.classList.contains('page-size-select')) {
+          SIZE = parseInt(e.target.value, 10);
+          loadNotices(1);
+        }
+      });
+      loadNotices(1);
+    })();
+  </script>
+</body>
+</html>

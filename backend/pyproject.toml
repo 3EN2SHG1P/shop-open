@@ -1,0 +1,30 @@
+[project]
+name = "shop-backend"
+version = "0.1.0"
+description = "随心商城 —— FastAPI + MySQL 异步电商后端"
+license = "MIT"
+authors = [{ name = "shop-open contributors" }]
+requires-python = ">=3.10"
+dependencies = [
+    "aiomysql>=0.3.2",
+    "bcrypt>=5.0.0",
+    "cryptography>=50.0.1",
+    "fastapi>=0.141.1",
+    "openpyxl>=3.1.5",
+    "pydantic>=2.13.5",
+    "pydantic-settings>=2.15.0",
+    "pyjwt>=2.13.0",
+    "pymysql>=1.2.0",
+    "python-multipart>=0.0.32",
+    "uvicorn>=0.52.4",
+]
+
+# 默认使用官方 PyPI。中国大陆用户如需加速，可取消下面两行注释：
+# [[tool.uv.index]]
+# url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
+]

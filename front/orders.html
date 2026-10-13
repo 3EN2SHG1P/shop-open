@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <link rel="icon" type="image/png" href="images/logo.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的订单 - 随心商城</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .orders-page { padding: 20px 0 40px; min-height: 500px; }
+    /* 会员资产快捷条 */
+    .member-asset-bar { background-color: var(--bg-white); border-radius: 4px; padding: 16px 20px; margin-bottom: 16px; display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+    .member-asset-bar .asset-points { font-size: 14px; color: var(--text-secondary); }
+    .member-asset-bar .asset-points strong { color: var(--primary); font-size: 20px; margin: 0 4px; }
+    .member-asset-bar .asset-links { margin-left: auto; display: flex; gap: 12px; }
+    .member-asset-bar .asset-link { font-size: 13px; color: var(--text-secondary); padding: 6px 14px; border: 1px solid var(--border); border-radius: 4px; transition: all 0.2s; }
+    .member-asset-bar .asset-link:hover { border-color: var(--primary); color: var(--primary); }
+    /* 订单状态标签 */
+    .order-tabs { background-color: var(--bg-white); display: flex; border-bottom: 2px solid var(--border); margin-bottom: 16px; border-radius: 4px 4px 0 0; flex-wrap: wrap; }
+    .order-tab { padding: 14px 28px; font-size: 14px; color: var(--text-secondary); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
+    .order-tab:hover { color: var(--primary); }
+    .order-tab.active { color: var(--primary); font-weight: 700; border-bottom-color: var(--primary); }
+    .order-tab .tab-count { font-size: 11px; color: var(--text-tertiary); margin-left: 4px; }
+    /* 订单卡片 */
+    .order-card { background-color: var(--bg-white); margin-bottom: 12px; border-radius: 4px; overflow: hidden; }
+    .order-card-header { padding: 12px 20px; background-color: var(--bg); display: flex; align-items: center; font-size: 12px; color: var(--text-secondary); border-bottom: 1px solid var(--border-light); }
+    .order-card-header .order-time { margin-right: 24px; }
+    .order-card-header .order-no { margin-right: 24px; }
+    .order-card-header .order-no span { color: var(--text); font-weight: 500; }
+    .order-card-header .order-status { margin-left: auto; font-weight: 700; }
+    .status-pending { color: var(--primary); }
+    .status-shipping { color: var(--info); }
+    .status-completed { color: var(--success); }
+    .status-cancelled { color: var(--text-tertiary); }
+    .status-aftersale { color: var(--warning, #d97706); }
+    /* 订单商品 */
+    .order-card-body { padding: 16px 20px; display: flex; align-items: center; }
+    .order-products { flex: 1; display: flex; gap: 16px; }
+    .order-product { display: flex; align-items: center; gap: 12px; }
+    .order-product img { width: 60px; height: 60px; object-fit: contain; background-color: var(--bg); border-radius: 4px; }
+    .order-product .op-info { max-width: 200px; }
+    .order-product .op-name { font-size: 12px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 4px; }
+    .order-product .op-spec { font-size: 11px; color: var(--text-tertiary); }
+    .order-more { display: flex; align-items: center; justify-content: center; width: 60px; height: 60px; background-color: var(--bg); border-radius: 4px; font-size: 11px; color: var(--text-secondary); }
+    .order-amount { width: 140px; text-align: center; }
+    .order-amount .amount-label { font-size: 11px; color: var(--text-tertiary); margin-bottom: 4px; }
+    .order-amount .amount-value { font-size: 16px; color: var(--primary); font-weight: 700; }
+    .order-amount .amount-value .yuan { font-size: 11px; }
+    .order-actions { width: 140px; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+    .order-btn { padding: 6px 16px; font-size: 12px; border-radius: 4px; cursor: pointer; transition: all 0.2s; width: 100px; text-align: center; text-decoration: none; display: inline-block; box-sizing: border-box; border: none; }
+    .order-btn-primary { background-color: var(--primary); color: #fff; }
+    .order-btn-primary:hover { background-color: var(--primary-hover); color: #fff; }
+    .order-btn-outline { background-color: var(--bg-white); border: 1px solid var(--text-placeholder); color: var(--text-secondary); }
+    .order-btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+    .order-btn-text { color: var(--text-secondary); padding: 4px 0; }
+    .order-btn-text:hover { color: var(--primary); }
+    /* 空订单 */
+    .empty-orders { text-align: center; padding: 80px 0; background-color: var(--bg-white); border-radius: 4px; }
+    .empty-orders .empty-icon { font-size: 64px; color: var(--text-placeholder); margin-bottom: 16px; }
+    .empty-orders .empty-text { font-size: 14px; color: var(--text-secondary); margin-bottom: 20px; }
+    .empty-orders .empty-btn { display: inline-block; padding: 10px 32px; background-color: var(--primary); color: #fff; font-size: 14px; border-radius: 4px; cursor: pointer; text-decoration: none; }
+    .empty-orders .empty-btn:hover { background-color: var(--primary-hover); color: #fff; }
+    /* 物流弹层 */
+    .logistics-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 200; display: none; }
+    .logistics-modal .lm-card { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 360px; background-color: var(--bg-white); border-radius: 8px; padding: 24px; box-shadow: 0 8px 40px rgba(0,0,0,0.2); }
+    .logistics-modal .lm-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+    .logistics-modal .lm-close { font-size: 18px; color: var(--text-placeholder); cursor: pointer; }
+    .logistics-modal .lm-row { font-size: 13px; color: var(--text-secondary); margin-bottom: 10px; }
+    .logistics-modal .lm-row strong { color: var(--text); font-weight: 500; }
+    /* 评价弹层 */
+    .review-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 200; display: none; }
+    .review-modal .rm-card { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 480px; max-height: 80vh; overflow-y: auto; background-color: var(--bg-white); border-radius: 8px; padding: 24px; box-shadow: 0 8px 40px rgba(0,0,0,0.2); }
+    .review-modal .rm-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+    .review-modal .rm-close { font-size: 18px; color: var(--text-placeholder); cursor: pointer; }
+    .review-modal .rm-item { display: flex; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border-light); }
+    .review-modal .rm-item img { width: 60px; height: 60px; object-fit: contain; background-color: var(--bg); border-radius: 4px; flex-shrink: 0; }
+    .review-modal .rm-info { flex: 1; }
+    .review-modal .rm-name { font-size: 13px; color: var(--text); margin-bottom: 6px; }
+    .review-modal .rm-stars { font-size: 22px; color: var(--text-placeholder); cursor: pointer; margin-bottom: 8px; user-select: none; }
+    .review-modal .rm-stars span { transition: color 0.15s; margin-right: 2px; }
+    .review-modal .rm-stars span.on { color: var(--warning, #f08800); }
+    .review-modal .rm-text { width: 100%; min-height: 56px; border: 1px solid var(--border); border-radius: 4px; padding: 8px; font-size: 12px; resize: vertical; box-sizing: border-box; }
+    .review-modal .rm-submit { margin-top: 8px; padding: 6px 16px; background-color: var(--primary); color: #fff; font-size: 12px; border: none; border-radius: 4px; cursor: pointer; }
+    .review-modal .rm-item.rm-done { opacity: 0.6; }
+    .review-modal .rm-item.rm-done .rm-submit { background-color: var(--text-placeholder); cursor: default; }
+  </style>
+</head>
+<body>
+
+<header class="simple-header">
+  <div class="container">
+    <a href="index.html" class="logo"><img src="images/logo.png" alt="随心商城"></a>
+    <span class="page-title">我的订单</span>
+    <div class="header-right">
+      <a href="index.html">返回首页</a>
+      <span class="sep">|</span>
+      <a href="cart.html">购物车</a>
+    </div>
+  </div>
+</header>
+
+<div class="container orders-page">
+  <!-- 会员资产快捷条 -->
+  <div class="member-asset-bar">
+    <div class="asset-points">我的积分：<strong id="jsAssetPoints">0</strong></div>
+    <div class="asset-links">
+      <a class="asset-link" href="coupons.html">我的券</a>
+      <a class="asset-link" href="points.html">我的积分</a>
+      <a class="asset-link" href="after-sale.html">售后中心</a>
+    </div>
+  </div>
+
+  <!-- 订单状态标签 -->
+  <div class="order-tabs" id="jsTabs"></div>
+
+  <!-- 订单列表 -->
+  <div id="jsOrderList"></div>
+
+  <!-- 分页器 -->
+  <div class="pagination" id="jsPager"></div>
+</div>
+
+<!-- 物流弹层 -->
+<div class="logistics-modal" id="jsLogisticsModal">
+  <div class="lm-card">
+    <div class="lm-title">物流信息 <span class="lm-close" id="jsLogiClose">×</span></div>
+    <div class="lm-row">物流公司：<strong id="jsLogiCompany">—</strong></div>
+    <div class="lm-row">物流单号：<strong id="jsLogiNo">—</strong></div>
+    <div class="lm-row">发货时间：<strong id="jsLogiTime">—</strong></div>
+  </div>
+</div>
+
+<!-- 评价弹层 -->
+<div class="review-modal" id="jsReviewModal">
+  <div class="rm-card">
+    <div class="rm-title">发表评价 <span class="rm-close" id="jsReviewClose">×</span></div>
+    <div class="rm-items" id="jsReviewItems"></div>
+  </div>
+</div>
+
+<div class="footer-copyright">
+  <div class="container">
+    <div class="footer-logo"><img src="images/logo.png" alt="随心商城"></div>
+    <div class="footer-info">
+      <div class="footer-links-row">
+        <a href="index.html">商城首页</a>
+        <span class="sep">|</span>
+        <a href="service.html">服务中心</a>
+        <span class="sep">|</span>
+        <a href="orders.html">我的订单</a>
+        <span class="sep">|</span>
+        <a href="after-sale.html">售后中心</a>
+        <span class="sep">|</span>
+        <a href="coupons.html">我的优惠券</a>
+      </div>
+      <div class="footer-record">© 2026 shop-open · 开源演示项目，非真实商户</div>
+    </div>
+  </div>
+  <div class="footer-slogan">随心选好物，品质看得见</div>
+</div>
+
+<script src="js/ui.js"></script>
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/page-orders.js"></script>
+<script src="js/live.js"></script>
+</body>
+</html>

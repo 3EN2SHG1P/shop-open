@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>系统设置 - 商城后台管理系统</title>
+  <link rel="stylesheet" href="../../css/common.css?v=20260905b">
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main-wrapper">
+      <header class="header" id="header"></header>
+      <main class="content">
+        <div class="page-header">
+          <div><h1 class="page-title">系统设置</h1><p class="page-desc">配置商城基本信息、支付、物流、通知等参数</p></div>
+        </div>
+        <div class="card">
+          <div class="card-header" style="padding-bottom:0;border-bottom:none;">
+            <div class="tabs" style="margin-bottom:0;border-bottom:none;">
+              <div class="tab-item active" data-tab="tab-basic" onclick="switchTab(this,'tab-basic')">基本设置</div>
+              <div class="tab-item" data-tab="tab-payment" onclick="switchTab(this,'tab-payment')">支付配置</div>
+              <div class="tab-item" data-tab="tab-logistics" onclick="switchTab(this,'tab-logistics')">物流配置</div>
+              <div class="tab-item" data-tab="tab-notify" onclick="switchTab(this,'tab-notify')">通知配置</div>
+              <div class="tab-item" data-tab="tab-freight" onclick="switchTab(this,'tab-freight')">运费模板</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="tabs-container">
+              <div class="tab-content active" id="tab-basic">
+                <div class="form-row">
+                  <div class="form-group" style="grid-column:span 2;"><label class="form-label">商城名称 <span class="required">*</span></label><input type="text" data-key="basic.site_name" class="form-control" maxlength="50" placeholder="请输入商城名称"></div>
+                  <div class="form-group" style="grid-column:span 2;"><label class="form-label">商城LOGO</label>
+                    <div class="img-field">
+                      <div class="img-thumb" id="siteLogoPreview">🏷</div>
+                      <input type="text" data-key="basic.site_logo" id="siteLogoInput" class="form-control" placeholder="可粘贴 http(s) 图片外链或点击「上传」，留空则显示默认文字 Logo">
+                      <button type="button" class="btn btn-sm btn-secondary upload-trigger" id="btnSiteLogo">上传</button>
+                    </div>
+                  </div>
+                  <div class="form-group"><label class="form-label">站点地址</label><input type="url" data-key="basic.site_url" class="form-control" placeholder="http://"></div>
+                  <div class="form-group"><label class="form-label">客服电话</label><input type="text" data-key="basic.service_phone" class="form-control" placeholder="如 400-000-0000（示例号码，请替换为真实客服电话）"></div>
+                  <div class="form-group"><label class="form-label">客服邮箱</label><input type="email" data-key="basic.service_email" class="form-control" placeholder="service@example.com"></div>
+                  <div class="form-group"><label class="form-label">备案号</label><input type="text" data-key="basic.record_no" class="form-control" placeholder="如 粤ICP备XXXXXXXX号"></div>
+                  <div class="form-group"><label class="form-label">版权信息</label><input type="text" data-key="basic.copyright" class="form-control" placeholder="如 © 2026 shop-open · 开源演示项目，非真实商户"></div>
+                </div>
+                <div class="form-group"><label class="form-label">商城简介</label><textarea data-key="basic.site_description" class="form-control" rows="3" placeholder="请输入商城简介"></textarea></div>
+                <div class="form-row">
+                  <div class="form-group"><label class="form-label">评价审核</label><label class="switch"><input type="checkbox" data-key="basic.comment_audit_enabled"><span class="switch-slider"></span></label><div class="form-hint">开启后用户评价需审核通过后显示</div></div>
+                  <div class="form-group"><label class="form-label">库存预警</label><label class="switch"><input type="checkbox" data-key="basic.stock_warn_enabled"><span class="switch-slider"></span></label><div class="form-hint">开启后库存低于预警值时自动提醒</div></div>
+                </div>
+                <div class="btn-group" style="margin-top:20px;"><button class="btn btn-primary" onclick="saveGroup('basic')">保存设置</button></div>
+              </div>
+
+              <div class="tab-content" id="tab-payment">
+                <div class="form-hint" style="margin-bottom:4px;">以下支付渠道配置仅为演示表单，<strong>不会真正接入任何第三方支付网关</strong>；表单中出现的第三方名称与本项目无关联。</div>
+                <div style="display:flex;flex-direction:column;gap:16px;">
+                  <div style="border:1px solid var(--border-color);border-radius:var(--radius-lg);padding:20px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                      <div style="display:flex;align-items:center;gap:12px;"><div style="width:40px;height:40px;background:#1E9E96;border-radius:var(--radius);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;">扫</div><div><div style="font-weight:600;">渠道一 · 扫码支付</div><div style="font-size:12px;color:var(--text-secondary);">演示配置项，不接真实网关</div></div></div>
+                      <label class="switch"><input type="checkbox" data-key="payment.wechat_enabled"><span class="switch-slider"></span></label>
+                    </div>
+                    <div class="form-row">
+                      <div class="form-group"><label class="form-label">AppID</label><input type="text" data-key="payment.wechat_appid" class="form-control" placeholder="请输入 AppID"></div>
+                      <div class="form-group"><label class="form-label">商户号</label><input type="text" data-key="payment.wechat_mch_id" class="form-control" placeholder="请输入商户号"></div>
+                      <div class="form-group" style="grid-column:span 2;"><label class="form-label">API密钥</label><input type="password" data-key="payment.wechat_api_key" class="form-control" placeholder="请输入 API 密钥"></div>
+                    </div>
+                  </div>
+                  <div style="border:1px solid var(--border-color);border-radius:var(--radius-lg);padding:20px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                      <div style="display:flex;align-items:center;gap:12px;"><div style="width:40px;height:40px;background:#2196F3;border-radius:var(--radius);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;">快</div><div><div style="font-weight:600;">渠道二 · 快捷支付</div><div style="font-size:12px;color:var(--text-secondary);">演示配置项，不接真实网关</div></div></div>
+                      <label class="switch"><input type="checkbox" data-key="payment.alipay_enabled"><span class="switch-slider"></span></label>
+                    </div>
+                    <div class="form-row">
+                      <div class="form-group"><label class="form-label">应用ID</label><input type="text" data-key="payment.alipay_app_id" class="form-control" placeholder="请输入应用ID"></div>
+                      <div class="form-group"><label class="form-label">应用私钥</label><input type="password" data-key="payment.alipay_private_key" class="form-control" placeholder="请输入应用私钥"></div>
+                    </div>
+                  </div>
+                  <div style="border:1px solid var(--border-color);border-radius:var(--radius-lg);padding:20px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                      <div style="display:flex;align-items:center;gap:12px;"><div style="width:40px;height:40px;background:var(--text-secondary);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;">货</div><div><div style="font-weight:600;">货到付款</div><div style="font-size:12px;color:var(--text-secondary);">开启后支持配送时收取现金</div></div></div>
+                      <label class="switch"><input type="checkbox" data-key="payment.is_cod"><span class="switch-slider"></span></label>
+                    </div>
+                  </div>
+                </div>
+                <div class="form-row" style="margin-top:20px;">
+                  <div class="form-group"><label class="form-label">支付超时时间（分钟）</label><input type="number" data-key="payment.pay_timeout" class="form-control" min="1" placeholder="如 120"></div>
+                </div>
+                <div class="btn-group" style="margin-top:20px;"><button class="btn btn-primary" onclick="saveGroup('payment')">保存配置</button></div>
+              </div>
+
+              <div class="tab-content" id="tab-logistics">
+                <div class="form-row">
+                  <div class="form-group"><label class="form-label">发货地址</label><input type="text" data-key="logistics.ship_address" class="form-control" placeholder="如 广东省深圳市南山区科技园1号"></div>
+                  <div class="form-group"><label class="form-label">发货人</label><input type="text" data-key="logistics.ship_contact" class="form-control" placeholder="请输入发货联系人"></div>
+                  <div class="form-group"><label class="form-label">发货电话</label><input type="text" data-key="logistics.ship_phone" class="form-control" placeholder="请输入发货联系电话"></div>
+                  <div class="form-group"><label class="form-label">默认发货时间</label>
+                    <select class="form-control" data-key="logistics.ship_time">
+                      <option value="0">立即发货</option>
+                      <option value="6">6小时内</option>
+                      <option value="12">12小时内</option>
+                      <option value="24">24小时内</option>
+                      <option value="48">48小时内</option>
+                      <option value="72">72小时内</option>
+                    </select>
+                  </div>
+                  <div class="form-group"><label class="form-label">物流查询接口</label>
+                    <select class="form-control" data-key="logistics.track_provider">
+                      <option value="">不启用在线查询</option>
+                      <option value="kuaidi100">快递100</option>
+                      <option value="kdniao">快递鸟</option>
+                      <option value="custom">自定义接口</option>
+                    </select>
+                    <div class="form-hint">下拉项仅为常见第三方查询平台示例，请按实际合作方配置，与本项目无关联</div>
+                  </div>
+                </div>
+                <div class="form-group"><label class="form-label">物流API密钥</label><input type="password" data-key="logistics.track_key" class="form-control" placeholder="请输入物流查询授权 key"></div>
+                <div class="btn-group" style="margin-top:20px;"><button class="btn btn-primary" onclick="saveGroup('logistics')">保存配置</button></div>
+              </div>
+
+              <div class="tab-content" id="tab-notify">
+                <h4 style="margin-bottom:16px;font-size:14px;">短信配置</h4>
+                <div class="form-row">
+                  <div class="form-group"><label class="form-label">短信服务商</label><input type="text" data-key="notify.sms_provider" class="form-control" placeholder="如 阿里云短信 / 腾讯云短信"></div>
+                  <div class="form-group"><label class="form-label">AccessKey ID</label><input type="text" data-key="notify.sms_access_key_id" class="form-control" placeholder="请输入 AccessKey ID"></div>
+                  <div class="form-group"><label class="form-label">AccessKey Secret</label><input type="password" data-key="notify.sms_access_key_secret" class="form-control" placeholder="请输入 AccessKey Secret"></div>
+                  <div class="form-group"><label class="form-label">短信签名</label><input type="text" data-key="notify.sms_sign" class="form-control" placeholder="请输入短信签名"></div>
+                  <div class="form-group"><label class="form-label">验证码模板ID</label><input type="text" data-key="notify.sms_verify_template" class="form-control" placeholder="请输入验证码短信模板ID"></div>
+                  <div class="form-group"><label class="form-label">短信开关</label><label class="switch"><input type="checkbox" data-key="notify.sms_enabled"><span class="switch-slider"></span></label><div class="form-hint">开启后启用短信通知能力</div></div>
+                </div>
+                <h4 style="margin:24px 0 16px;font-size:14px;">邮件配置</h4>
+                <div class="form-row">
+                  <div class="form-group"><label class="form-label">SMTP服务器</label><input type="text" data-key="notify.smtp_host" class="form-control" placeholder="如 smtp.example.com"></div>
+                  <div class="form-group"><label class="form-label">端口</label><input type="number" data-key="notify.smtp_port" class="form-control" placeholder="如 465"></div>
+                  <div class="form-group"><label class="form-label">发件邮箱</label><input type="email" data-key="notify.smtp_from" class="form-control" placeholder="noreply@example.com"></div>
+                  <div class="form-group"><label class="form-label">邮箱授权码</label><input type="password" data-key="notify.smtp_auth_code" class="form-control" placeholder="请输入邮箱授权码"></div>
+                  <div class="form-group"><label class="form-label">邮件开关</label><label class="switch"><input type="checkbox" data-key="notify.email_enabled"><span class="switch-slider"></span></label><div class="form-hint">开启后启用邮件通知能力</div></div>
+                </div>
+                <div class="btn-group" style="margin-top:20px;"><button class="btn btn-primary" onclick="saveGroup('notify')">保存配置</button></div>
+              </div>
+
+              <div class="tab-content" id="tab-freight">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                  <h4 style="font-size:14px;">运费模板列表</h4>
+                  <button class="btn btn-sm btn-primary" onclick="openFreightModal()">➕ 新增模板</button>
+                </div>
+                <div class="table-wrapper">
+                  <table class="table">
+                    <thead><tr><th>模板名称</th><th>计费方式</th><th>包邮</th><th>配送区域规则</th><th>创建时间</th><th class="col-actions">操作</th></tr></thead>
+                    <tbody id="freightBody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="freightModal">
+    <div class="modal">
+      <div class="modal-header"><h3 class="modal-title" id="freightModalTitle">新增模板</h3><button class="modal-close" data-close-modal="freightModal">✕</button></div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group form-group-full"><label class="form-label">模板名称 <span class="required">*</span></label><input type="text" id="ftName" class="form-control" maxlength="50" placeholder="如：全国包邮模板"></div>
+          <div class="form-group"><label class="form-label">计费方式 <span class="required">*</span></label>
+            <select class="form-control" id="ftType" onchange="syncFreightType()">
+              <option value="3">按件数</option>
+              <option value="2">按重量</option>
+              <option value="1">包邮</option>
+            </select>
+          </div>
+          <div class="form-group"><label class="form-label">包邮</label><label class="switch"><input type="checkbox" id="ftFree" checked><span class="switch-slider"></span></label></div>
+          <div class="form-group form-group-full"><label class="form-label">配送区域规则（JSON）</label><textarea id="ftRegions" class="form-control" rows="5" placeholder='[{"region":"全国","first":1,"firstFee":5,"add":1,"addFee":3}]'></textarea><div class="form-hint">格式：[{"region":"地区","first":首件/首重,"firstFee":首费,"add":续件/续重,"addFee":续费}]，空数组表示不配送</div></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-close-modal="freightModal">取消</button><button class="btn btn-primary" onclick="saveFreight()">保存</button></div>
+    </div>
+  </div>
+
+  <script src="../../js/common.js?v=20260905b"></script>
+  <script>
+    const API = AdminUI.API_BASE;
+    let editingFreightId = null;
+    const FREIGHT_TYPE_TEXT = { 1: '包邮', 2: '按重量', 3: '按件数' };
+
+    function switchTab(el, id) {
+      el.parentElement.querySelectorAll('.tab-item').forEach(function (t) { t.classList.remove('active'); });
+      el.classList.add('active');
+      document.querySelectorAll('.tabs-container .tab-content').forEach(function (c) { c.classList.remove('active'); });
+      document.getElementById(id).classList.add('active');
+    }
+
+    function formatRegions(json) {
+      let list = [];
+      try { list = JSON.parse(json || '[]'); } catch (e) { return '<span style="color:var(--danger);">配置格式有误</span>'; }
+      if (!Array.isArray(list) || !list.length) return '—';
+      return list.map(function (r) {
+        const firstUnit = '件';
+        const addUnit = '件';
+        const t = (r.region || '') + '：首' + (r.first || 0) + firstUnit + ' ' + (r.firstFee || 0) + '元';
+        const ext = r.add > 0 || (r.addFee || 0) > 0 ? '，续' + (r.add || 1) + addUnit + ' ' + (r.addFee || 0) + '元' : '';
+        return t + ext;
+      }).join('；');
+    }
+
+    async function loadFreight() {
+      const rows = await AdminUI.get(API + '/freight-templates') || [];
+      const tbody = document.getElementById('freightBody');
+      tbody.innerHTML = rows.map(function (r) {
+        const freeTag = r.isFreeShipping === 1
+          ? '<span class="badge-tag success">包邮</span>'
+          : '<span class="badge-tag secondary">不包邮</span>';
+        return '<tr>' +
+          '<td style="font-weight:500;">' + AdminUI.escHtml(r.name) + '</td>' +
+          '<td>' + AdminUI.escHtml(r.typeText) + '</td>' +
+          '<td>' + freeTag + '</td>' +
+          '<td style="max-width:320px;">' + formatRegions(r.regionsJson) + '</td>' +
+          '<td style="font-size:12px;color:var(--text-secondary);">' + AdminUI.fmtTime(r.createdAt) + '</td>' +
+          '<td class="col-actions">' +
+          '<a class="action-link" onclick="openFreightModal(' + r.id + ')">编辑</a>' +
+          '<a class="action-link danger" onclick="deleteFreight(' + r.id + ')">删除</a>' +
+          '</td></tr>';
+      }).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:40px 0;">暂无运费模板，点击右上角新增</td></tr>';
+    }
+
+    function openFreightModal(id) {
+      editingFreightId = id || null;
+      document.getElementById('freightModalTitle').textContent = id ? '编辑模板' : '新增模板';
+      document.getElementById('ftName').value = '';
+      document.getElementById('ftType').value = '3';
+      document.getElementById('ftFree').checked = true;
+      document.getElementById('ftRegions').value = '';
+      if (id) {
+        AdminUI.get(API + '/freight-templates').then(function (rows) {
+          const row = (rows || []).find(function (x) { return x.id === id; });
+          if (!row) return;
+          document.getElementById('ftName').value = row.name;
+          document.getElementById('ftType').value = String(row.type);
+          document.getElementById('ftFree').checked = row.isFreeShipping === 1;
+          document.getElementById('ftRegions').value = row.regionsJson || '[]';
+          syncFreightType();
+        });
+      } else {
+        syncFreightType();
+      }
+      AdminUI.openModal('freightModal');
+    }
+
+    function syncFreightType() {
+      const free = document.getElementById('ftFree');
+      free.checked = document.getElementById('ftType').value === '1' ? true : free.checked;
+      free.disabled = document.getElementById('ftType').value === '1';
+    }
+
+    async function saveFreight() {
+      const name = document.getElementById('ftName').value.trim();
+      if (!name) { AdminUI.showToast('请输入模板名称', 'error'); return; }
+      const type = parseInt(document.getElementById('ftType').value, 10) || 3;
+      const isFreeShipping = type === 1 ? 1 : (document.getElementById('ftFree').checked ? 1 : 0);
+      const regionsRaw = document.getElementById('ftRegions').value.trim();
+      let regionsJson = '[]';
+      if (regionsRaw) {
+        try {
+          if (!Array.isArray(JSON.parse(regionsRaw))) throw new Error('not array');
+          regionsJson = regionsRaw;
+        } catch (e) { AdminUI.showToast('配送区域 JSON 格式不正确', 'error'); return; }
+      }
+      const body = { name: name, type: type, isFreeShipping: isFreeShipping, regionsJson: regionsJson };
+      if (editingFreightId) {
+        await AdminUI.put(API + '/freight-templates/' + editingFreightId, body);
+        AdminUI.showToast('模板更新成功', 'success');
+      } else {
+        await AdminUI.post(API + '/freight-templates', body);
+        AdminUI.showToast('模板创建成功', 'success');
+      }
+      AdminUI.closeModal('freightModal');
+      loadFreight();
+    }
+
+    function deleteFreight(id) {
+      AdminUI.confirmAction('确定删除该运费模板？被商品引用的模板无法删除。', async function () {
+        try {
+          await AdminUI.del(API + '/freight-templates/' + id);
+          AdminUI.showToast('删除成功', 'success');
+          loadFreight();
+        } catch (e) { }
+      });
+    }
+
+    async function saveGroup(group) {
+      const root = document.getElementById('tab-' + group);
+      const items = {};
+      root.querySelectorAll('[data-key]').forEach(function (el) {
+        items[el.getAttribute('data-key')] = (el.type === 'checkbox') ? (el.checked ? '1' : '0') : el.value.trim();
+      });
+      await AdminUI.put(API + '/settings/' + group, { items: items });
+      AdminUI.showToast('保存成功', 'success');
+    }
+
+    async function loadGroup(group) {
+      const data = await AdminUI.get(API + '/settings/' + group);
+      const items = (data && data.items) || {};
+      const root = document.getElementById('tab-' + group);
+      root.querySelectorAll('[data-key]').forEach(function (el) {
+        const val = items[el.getAttribute('data-key')] || '';
+        if (el.type === 'checkbox') el.checked = val === '1';
+        else el.value = val;
+      });
+    }
+
+    function refreshSiteLogoPreview() {
+      const input = document.getElementById('siteLogoInput');
+      const pv = document.getElementById('siteLogoPreview');
+      const v = input ? input.value.trim() : '';
+      pv.innerHTML = AdminUI.isImgSrc(v) ? AdminUI.imgSrcHtml(v, 'logo') : '🏷';
+    }
+
+    (async function () {
+      const ok = await AdminUI.initPage({ key: 'settings', breadcrumb: ['系统', '系统设置'], need: ['settings:list'] });
+      if (!ok) return;
+      await Promise.all(['basic', 'payment', 'logistics', 'notify'].map(loadGroup));
+      loadFreight();
+      AdminUI.enableImageUpload({
+        input: document.getElementById('siteLogoInput'),
+        btn: document.getElementById('btnSiteLogo'),
+        onUpload: function () { refreshSiteLogoPreview(); }
+      });
+      document.getElementById('siteLogoInput').addEventListener('input', refreshSiteLogoPreview);
+      refreshSiteLogoPreview();
+    })();
+  </script>
+</body>
+</html>

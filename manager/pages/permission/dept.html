@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>部门管理 - 商城后台管理系统</title>
+  <link rel="stylesheet" href="../../css/common.css?v=20260904e">
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main-wrapper">
+      <header class="header" id="header"></header>
+      <main class="content">
+        <div class="page-header">
+          <div><h1 class="page-title">部门管理</h1><p class="page-desc">维护组织架构，用于数据权限范围划分</p></div>
+          <button class="btn btn-primary" id="btnAddDept" onclick="openDeptCreate(0)">➕ 新增部门</button>
+        </div>
+        <div class="card">
+          <div class="card-body no-padding">
+            <div class="table-wrapper">
+              <table class="table">
+                <thead><tr><th>部门名称</th><th>上级部门</th><th>排序</th><th>状态</th><th class="col-actions">操作</th></tr></thead>
+                <tbody id="deptTbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <div class="modal-overlay" id="deptModal">
+    <div class="modal">
+      <div class="modal-header"><h3 class="modal-title" id="deptModalTitle">新增部门</h3><button class="modal-close" data-close-modal="deptModal">✕</button></div>
+      <div class="modal-body">
+        <div class="form-group"><label class="form-label">上级部门</label><select class="form-control" id="d-parent"></select></div>
+        <div class="form-group"><label class="form-label">部门名称 <span class="required">*</span></label><input type="text" class="form-control" id="d-name" placeholder="请输入部门名称"></div>
+        <div class="form-group"><label class="form-label">排序</label><input type="number" class="form-control" id="d-sort" value="0"></div>
+        <div class="form-group"><label class="form-label">状态</label><label class="switch"><input type="checkbox" id="d-status" checked><span class="switch-slider"></span></label></div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-close-modal="deptModal">取消</button><button class="btn btn-primary" onclick="saveDept()">确认创建</button></div>
+    </div>
+  </div>
+  <script src="../../js/common.js?v=20260904e"></script>
+  <script>
+    let DEPT_TREE = [];
+    let DEPT_EDIT_ID = null;
+
+    function allDepts() {
+      return AdminUI.flattenTree(DEPT_TREE);
+    }
+
+    function deptById(id) {
+      const list = allDepts();
+      for (let i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+      return null;
+    }
+
+    async function loadDeptTree() {
+      const data = await AdminUI.get(AdminUI.API_BASE + '/permission/depts');
+      if (!data) return;
+      DEPT_TREE = data;
+      renderDeptTable();
+    }
+
+    function renderDeptTable() {
+      let html = '';
+      function rows(nodes, depth) {
+        nodes.forEach(n => {
+          const pad = 16 + depth * 22;
+          const parent = n.parent_id ? deptById(n.parent_id) : null;
+          let act = '';
+          if (AdminUI.can('permission:add')) act += `<a class="action-link" onclick="openDeptCreate(${n.id})">+子部门</a>`;
+          if (AdminUI.can('permission:edit')) act += `<a class="action-link" onclick="openDeptEdit(${n.id})">编辑</a>`;
+          if (AdminUI.can('permission:delete')) act += `<a class="action-link danger" onclick="removeDept(${n.id})">删除</a>`;
+          if (!act) act = '<span style="color:var(--text-muted);font-size:12px;">-</span>';
+          const hasKids = n.children && n.children.length;
+          html += `<tr>
+            <td style="${depth === 0 ? 'font-weight:500;' : ''}padding-left:${pad}px;">${hasKids ? '▾ ' : ''}${AdminUI.esc(n.deptName || n.name)}</td>
+            <td>${parent ? AdminUI.esc(parent.deptName || parent.name) : '顶级部门'}</td>
+            <td>${n.sort || 0}</td>
+            <td>${n.status === 1 ? '<span class="badge-tag success">启用</span>' : '<span class="badge-tag danger">停用</span>'}</td>
+            <td class="col-actions">${act}</td>
+          </tr>`;
+          if (n.children && n.children.length) rows(n.children, depth + 1);
+        });
+      }
+      rows(DEPT_TREE, 0);
+      document.getElementById('deptTbody').innerHTML = html || '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:40px 0;">暂无数据</td></tr>';
+    }
+
+    function descendantIds(id) {
+      const out = [];
+      function walk(nodes) {
+        nodes.forEach(n => {
+          if (n.id === id) { collect(n); return; }
+          if (n.children && n.children.length) walk(n.children);
+        });
+      }
+      function collect(n) {
+        out.push(n.id);
+        if (n.children && n.children.length) n.children.forEach(collect);
+      }
+      walk(DEPT_TREE);
+      return out;
+    }
+
+    function fillParentOptions(excludeId) {
+      const list = allDepts();
+      let exclude = [];
+      if (excludeId) exclude = descendantIds(excludeId);
+      document.getElementById('d-parent').innerHTML = '<option value="0">顶级部门</option>' + list.filter(n => exclude.indexOf(n.id) === -1).map(n => `<option value="${n.id}">${'　'.repeat(n.depth)}${AdminUI.esc(n.deptName || n.name)}</option>`).join('');
+    }
+
+    window.openDeptCreate = function (parentId) {
+      DEPT_EDIT_ID = null;
+      document.getElementById('deptModalTitle').textContent = '新增部门';
+      fillParentOptions(0);
+      document.getElementById('d-parent').value = String(parentId || 0);
+      document.getElementById('d-name').value = '';
+      document.getElementById('d-sort').value = '0';
+      document.getElementById('d-status').checked = true;
+      document.querySelector('#deptModal .modal-footer .btn-primary').textContent = '确认创建';
+      AdminUI.openModal('deptModal');
+    };
+
+    window.openDeptEdit = function (id) {
+      const n = deptById(id);
+      if (!n) return;
+      DEPT_EDIT_ID = n.id;
+      document.getElementById('deptModalTitle').textContent = '编辑部门 - ' + (n.deptName || n.name);
+      fillParentOptions(n.id);
+      document.getElementById('d-parent').value = String(n.parent_id || 0);
+      document.getElementById('d-name').value = n.deptName || n.name || '';
+      document.getElementById('d-sort').value = (n.sort === undefined ? 0 : n.sort);
+      document.getElementById('d-status').checked = n.status === 1;
+      document.querySelector('#deptModal .modal-footer .btn-primary').textContent = '保存修改';
+      AdminUI.openModal('deptModal');
+    };
+
+    window.saveDept = async function () {
+      const name = document.getElementById('d-name').value.trim();
+      if (!name) { AdminUI.showToast('请输入部门名称', 'error'); return; }
+      const payload = {
+        parent_id: parseInt(document.getElementById('d-parent').value, 10) || 0,
+        dept_name: name,
+        sort: parseInt(document.getElementById('d-sort').value, 10) || 0,
+        status: document.getElementById('d-status').checked ? 1 : 0
+      };
+      try {
+        if (DEPT_EDIT_ID) {
+          await AdminUI.put(AdminUI.API_BASE + '/permission/depts/' + DEPT_EDIT_ID, payload);
+          AdminUI.showToast('保存成功', 'success');
+        } else {
+          await AdminUI.post(AdminUI.API_BASE + '/permission/depts', payload);
+          AdminUI.showToast('部门创建成功', 'success');
+        }
+        AdminUI.closeModal('deptModal');
+        loadDeptTree();
+      } catch (e) { }
+    };
+
+    window.removeDept = async function (id) {
+      const n = deptById(id);
+      if (!n) return;
+      if (!window.confirm('确认删除部门「' + (n.deptName || n.name) + '」？')) return;
+      try {
+        await AdminUI.del(AdminUI.API_BASE + '/permission/depts/' + id);
+        AdminUI.showToast('删除成功', 'success');
+        loadDeptTree();
+      } catch (e) { }
+    };
+
+    (async function () {
+      const ok = await AdminUI.initPage({ key: 'dept', breadcrumb: ['权限管理', '部门管理'], need: ['permission:list'] });
+      if (!ok) return;
+      if (!AdminUI.can('permission:add')) document.getElementById('btnAddDept').style.display = 'none';
+      await loadDeptTree();
+    })();
+  </script>
+</body>
+</html>

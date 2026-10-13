@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <link rel="icon" type="image/png" href="images/logo.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>增加收货地址 - 随心商城</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .address-form-page { padding: 20px 0 40px; }
+    .form-card { max-width: 560px; margin: 0 auto; background-color: var(--bg-white); border-radius: 8px; padding: 24px 28px; }
+    .form-card h2 { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 20px; }
+    .form-row { margin-bottom: 16px; }
+    .form-row > label { display: block; font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 6px; }
+    .form-row > label .required { color: var(--danger); margin-right: 2px; }
+    .form-row input, .form-row select, .form-row textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; color: var(--text); background-color: var(--bg-white); box-sizing: border-box; }
+    .form-row input { height: 36px; }
+    .form-row input:focus, .form-row select:focus, .form-row textarea:focus { border-color: var(--primary); }
+    .form-row textarea { resize: vertical; min-height: 68px; }
+    .region-row { display: flex; gap: 8px; }
+    .region-row select { flex: 1; }
+    .default-row label { display: flex; align-items: center; font-size: 13px; color: var(--text-secondary); cursor: pointer; font-weight: 400; }
+    .default-row input { width: auto; height: auto; margin-right: 6px; }
+    .form-actions { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 24px; }
+    .btn-cancel { padding: 8px 28px; background-color: var(--bg-white); border: 1px solid var(--text-placeholder); color: var(--text-secondary); font-size: 13px; border-radius: 4px; cursor: pointer; }
+    .btn-cancel:hover { border-color: var(--primary); color: var(--primary); }
+    .btn-confirm { padding: 8px 28px; background-color: var(--primary); color: #fff; font-size: 13px; font-weight: 500; border-radius: 4px; cursor: pointer; }
+    .btn-confirm:hover { background-color: var(--primary-hover); }
+    .form-msg { min-height: 18px; font-size: 12px; color: var(--danger); margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+
+<!-- 简化版导航栏 -->
+<header class="simple-header">
+  <div class="container">
+    <a href="index.html" class="logo"><img src="images/logo.png" alt="随心商城"></a>
+    <span class="page-title" id="jsTitle">增加收货地址</span>
+    <div class="header-right">
+      <a href="index.html">返回首页</a>
+    </div>
+  </div>
+</header>
+
+<div class="container address-form-page">
+  <div class="form-card">
+    <h2 id="jsHeading">增加收货地址</h2>
+    <div class="form-msg" id="jsMsg"></div>
+    <div class="form-row">
+      <label><span class="required">*</span>收货人</label>
+      <input type="text" id="jsReceiver" placeholder="请输入收货人姓名" maxlength="20">
+    </div>
+    <div class="form-row">
+      <label><span class="required">*</span>手机号</label>
+      <input type="tel" id="jsPhone" placeholder="请输入手机号" maxlength="11">
+    </div>
+    <div class="form-row">
+      <label><span class="required">*</span>所在地区</label>
+      <div class="region-row">
+        <select id="jsProvince"><option value="">请选择省份</option></select>
+        <select id="jsCity"><option value="">请选择城市</option></select>
+        <select id="jsDistrict"><option value="">请选择区县</option></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <label><span class="required">*</span>详细地址</label>
+      <textarea id="jsDetail" placeholder="请输入详细地址，如街道、门牌号等" maxlength="200"></textarea>
+    </div>
+    <div class="form-row default-row">
+      <label><input type="checkbox" id="jsDefault"> 设为默认收货地址</label>
+    </div>
+    <div class="form-actions">
+      <button class="btn-cancel" id="jsCancel">取消</button>
+      <button class="btn-confirm" id="jsSave">确定</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/ui.js"></script>
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/page-address-form.js"></script>
+<script src="js/live.js"></script>
+</body>
+</html>

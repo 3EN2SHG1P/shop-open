@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录日志 - 商城后台管理系统</title>
+  <link rel="stylesheet" href="../../css/common.css?v=20260904e">
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main-wrapper">
+      <header class="header" id="header"></header>
+      <main class="content">
+        <div class="page-header">
+          <div><h1 class="page-title">登录日志</h1><p class="page-desc">查看管理员登录记录，包括成功与失败</p></div>
+        </div>
+        <div class="filter-bar">
+          <div class="filter-row">
+            <div class="filter-item"><label>关键词</label><input type="text" class="form-control" id="f-keyword" placeholder="账号"></div>
+            <div class="filter-item"><label>结果</label><select class="form-control" id="f-success"><option value="">全部</option><option value="1">成功</option><option value="0">失败</option></select></div>
+            <div class="filter-item"><label>开始日期</label><input type="date" class="form-control" id="f-start"></div>
+            <div class="filter-item"><label>结束日期</label><input type="date" class="form-control" id="f-end"></div>
+            <div class="filter-actions"><button class="btn btn-primary" onclick="resetLog()">重置</button></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body no-padding">
+            <div class="table-wrapper">
+              <table class="table">
+                <thead><tr><th>登录账号</th><th>登录IP</th><th>登录结果</th><th>登录时间</th><th>设备/浏览器</th></tr></thead>
+                <tbody id="logTbody"></tbody>
+              </table>
+            </div>
+            <div class="pagination" id="logPagination"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../../js/common.js?v=20260904e"></script>
+  <script>
+    let PAGE = 1;
+    let SIZE = 10;
+    let F = { keyword: '', success: '', start: '', end: '' };
+
+    async function loadLogs(page) {
+      PAGE = page || PAGE;
+      const data = await AdminUI.get(AdminUI.API_BASE + '/permission/login-logs', {
+        page: PAGE, page_size: SIZE,
+        keyword: F.keyword,
+        success: F.success === '' ? undefined : F.success,
+        start_time: F.start ? (F.start + ' 00:00:00') : '',
+        end_time: F.end ? (F.end + ' 23:59:59') : ''
+      });
+      if (!data) return;
+      const rows = (data.list || []).map(r => `
+        <tr>
+          <td style="font-weight:500;font-family:monospace;">${AdminUI.esc(r.username || '-')}</td>
+          <td style="font-family:monospace;font-size:12px;">${AdminUI.esc(r.ip || '-')}</td>
+          <td>${r.success === 1 ? '<span class="badge-tag success">成功</span>' : '<span class="badge-tag danger">失败</span>'}</td>
+          <td style="font-size:12px;color:var(--text-secondary);">${AdminUI.fmtTime(r.createdAt)}</td>
+          <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text-secondary);" title="${AdminUI.esc(r.userAgent || '')}">${AdminUI.esc(r.userAgent || '-')}</td>
+        </tr>`).join('');
+      document.getElementById('logTbody').innerHTML = rows || '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:40px 0;">暂无数据</td></tr>';
+      const total = data.total || 0;
+      const totalPages = Math.max(1, Math.ceil(total / SIZE));
+      AdminUI.renderPagination('logPagination', PAGE, totalPages, total, SIZE);
+    }
+
+    window.searchLog = function () {
+      F.keyword = document.getElementById('f-keyword').value.trim();
+      F.success = document.getElementById('f-success').value;
+      F.start = document.getElementById('f-start').value;
+      F.end = document.getElementById('f-end').value;
+      if (F.start && F.end && F.start > F.end) { AdminUI.showToast('开始日期不能晚于结束日期', 'error'); return; }
+      loadLogs(1);
+    };
+
+    window.resetLog = function () {
+      document.getElementById('f-keyword').value = '';
+      document.getElementById('f-success').value = '';
+      document.getElementById('f-start').value = '';
+      document.getElementById('f-end').value = '';
+      F = { keyword: '', success: '', start: '', end: '' };
+      loadLogs(1);
+    };
+
+    (async function () {
+      const ok = await AdminUI.initPage({ key: 'login-log', breadcrumb: ['权限管理', '登录日志'], need: ['permission:list'] });
+      if (!ok) return;
+      const pg = document.getElementById('logPagination');
+      pg.addEventListener('click', function (e) {
+        const b = e.target.closest('button[data-page]');
+        if (!b || b.disabled) return;
+        const p = parseInt(b.getAttribute('data-page'), 10);
+        if (p >= 1) loadLogs(p);
+      });
+      pg.addEventListener('change', function (e) {
+        if (e.target.classList.contains('page-size-select')) {
+          SIZE = parseInt(e.target.value, 10);
+          loadLogs(1);
+        }
+      });
+      const debouncedSearch = AdminUI.debounce(searchLog, 300);
+      document.getElementById('f-keyword').addEventListener('input', debouncedSearch);
+      document.getElementById('f-success').addEventListener('change', searchLog);
+      document.getElementById('f-start').addEventListener('change', searchLog);
+      document.getElementById('f-end').addEventListener('change', searchLog);
+      loadLogs(1);
+    })();
+  </script>
+</body>
+</html>

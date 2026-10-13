@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>拼团活动 - 商城后台管理系统</title>
+  <link rel="stylesheet" href="../../css/common.css?v=20260904e">
+  <style>
+    #gbModal .modal { width: 640px; }
+    #gbModal .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main-wrapper">
+      <header class="header" id="header"></header>
+      <main class="content">
+        <div class="page-header">
+          <div><h1 class="page-title">拼团活动</h1><p class="page-desc">多人成团享优惠，团长与团员不同阶梯价格</p></div>
+          <div class="btn-group"><button class="btn btn-primary" id="btnAdd" onclick="openCreate()" style="display:none;">➕ 新增拼团</button></div>
+        </div>
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-body" style="padding:12px 20px;">
+            <div class="filter-bar">
+              <input type="text" class="form-control filter-input" id="fKeyword" placeholder="活动名称/商品关键词">
+              <div class="filter-actions"><button class="btn btn-primary" onclick="resetSearch()">重置</button></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body no-padding">
+            <div class="table-wrapper">
+              <table class="table">
+                <thead><tr><th>活动名称</th><th>商品</th><th>拼团价格</th><th>成团</th><th>活动时间</th><th>状态</th><th class="col-actions">操作</th></tr></thead>
+                <tbody id="gbBody"></tbody>
+              </table>
+            </div>
+            <div id="gbPagination" class="pagination"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="gbModal">
+    <div class="modal">
+      <div class="modal-header"><h3 class="modal-title" id="gbModalTitle">新增拼团活动</h3><button class="modal-close" data-close-modal="gbModal">✕</button></div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group" style="grid-column:span 2;"><label class="form-label">活动名称 <span class="required">*</span></label><input type="text" id="gName" class="form-control" maxlength="100" placeholder="如：双人拼团特惠"></div>
+          <div class="form-group" style="grid-column:span 2;"><label class="form-label">拼团商品 <span class="required">*</span></label><select id="gGoods" class="form-control"><option value="">请选择商品</option></select></div>
+          <div class="form-group"><label class="form-label">团长价(元)</label><input type="number" id="gLeader" class="form-control" min="0" step="0.01"></div>
+          <div class="form-group"><label class="form-label">团员价(元)</label><input type="number" id="gMember" class="form-control" min="0" step="0.01"></div>
+          <div class="form-group"><label class="form-label">成团人数</label><input type="number" id="gSize" class="form-control" min="2" value="2"></div>
+          <div class="form-group"><label class="form-label">开团有效时长(小时)</label><input type="number" id="gHours" class="form-control" min="1" value="24"></div>
+          <div class="form-group"><label class="form-label">开始时间 <span class="required">*</span></label><input type="datetime-local" id="gStart" class="form-control"></div>
+          <div class="form-group"><label class="form-label">结束时间 <span class="required">*</span></label><input type="datetime-local" id="gEnd" class="form-control"></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-close-modal="gbModal">取消</button><button class="btn btn-primary" onclick="saveGb()">保存</button></div>
+    </div>
+  </div>
+
+  <script src="../../js/common.js?v=20260904e"></script>
+  <script>
+    const API = AdminUI.API_BASE;
+    let EDIT_ID = null;
+    let PAGE = 1;
+    let SIZE = 10;
+    const F = { keyword: '' };
+    let GOODS = [];
+    function esc(v) { return AdminUI.escHtml(v === null || v === undefined ? '' : String(v)); }
+    function money(v) { return (Number(v || 0)).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    function stageBadge(st) { return st === 1 ? '<span class="badge-tag info">待开始</span>' : (st === 2 ? '<span class="badge-tag success">进行中</span>' : '<span class="badge-tag default">已结束</span>'); }
+
+    function doSearch() { F.keyword = document.getElementById('fKeyword').value.trim(); loadGbs(1); }
+    function resetSearch() { document.getElementById('fKeyword').value = ''; F.keyword = ''; loadGbs(1); }
+
+    function loadGbs(page) {
+      PAGE = page || 1;
+      const params = { page: PAGE, page_size: SIZE };
+      if (F.keyword) params.keyword = F.keyword;
+      AdminUI.get(API + '/group-buys', params).then(function (data) {
+        if (!data) return;
+        const rows = (data.list || []).map(function (a) {
+          return '<tr>' +
+            '<td style="font-weight:600;">' + esc(a.name) + '</td>' +
+            '<td><span class="badge-tag primary">' + esc(a.goodsName || ('商品#' + a.goodsId)) + '</span></td>' +
+            '<td style="font-size:12px;"><span style="color:var(--danger);font-weight:600;">团长 ¥' + money(a.leaderPrice) + '</span><br><span style="color:var(--text-muted);">团员 ¥' + money(a.memberPrice) + '</span></td>' +
+            '<td style="font-size:12px;">' + a.groupSize + ' 人成团<br><span style="color:var(--text-muted);">' + a.validHours + ' 小时内有效</span></td>' +
+            '<td style="font-size:12px;">' + esc((a.startTime || '').slice(0, 16)) + '<br><span style="color:var(--text-muted);">至 ' + esc((a.endTime || '').slice(0, 16)) + '</span></td>' +
+            '<td>' + stageBadge(a.status) + '</td>' +
+            '<td class="col-actions">' + (AdminUI.can('marketing:edit') ? '<a class="action-link" onclick="openEdit(' + a.id + ')">编辑</a>' : '<span style="color:var(--text-muted);">-</span>') + '</td></tr>';
+        }).join('');
+        document.getElementById('gbBody').innerHTML = rows || '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px 0;">暂无拼团活动</td></tr>';
+        AdminUI.renderPagination('gbPagination', PAGE, Math.max(1, Math.ceil(data.total / SIZE)), data.total, SIZE);
+      });
+    }
+
+    function fillGoods() {
+      document.getElementById('gGoods').innerHTML = '<option value="">请选择商品</option>' + GOODS.map(function (g) {
+        return '<option value="' + g.id + '">' + esc(g.name) + '（¥' + money(g.price) + '）</option>';
+      }).join('');
+    }
+
+    function openCreate() {
+      EDIT_ID = null;
+      document.getElementById('gbModalTitle').textContent = '新增拼团活动';
+      document.getElementById('gName').value = '';
+      document.getElementById('gGoods').value = '';
+      document.getElementById('gLeader').value = '';
+      document.getElementById('gMember').value = '';
+      document.getElementById('gSize').value = '2';
+      document.getElementById('gHours').value = '24';
+      document.getElementById('gStart').value = '';
+      document.getElementById('gEnd').value = '';
+      AdminUI.openModal('gbModal');
+    }
+
+    function openEdit(id) {
+      AdminUI.findRow(API + '/group-buys', id).then(function (a) {
+        if (!a) return;
+        EDIT_ID = id;
+        document.getElementById('gbModalTitle').textContent = '编辑拼团活动';
+        document.getElementById('gName').value = a.name;
+        if (GOODS.filter(function (g) { return g.id === a.goodsId; }).length === 0) {
+          GOODS.push({ id: a.goodsId, name: a.goodsName || ('商品#' + a.goodsId), price: a.memberPrice });
+          fillGoods();
+        }
+        document.getElementById('gGoods').value = String(a.goodsId);
+        document.getElementById('gLeader').value = a.leaderPrice;
+        document.getElementById('gMember').value = a.memberPrice;
+        document.getElementById('gSize').value = a.groupSize;
+        document.getElementById('gHours').value = a.validHours;
+        document.getElementById('gStart').value = (a.startTime || '').slice(0, 16);
+        document.getElementById('gEnd').value = (a.endTime || '').slice(0, 16);
+        AdminUI.openModal('gbModal');
+      });
+    }
+
+    async function saveGb() {
+      const name = document.getElementById('gName').value.trim();
+      const goodsId = Number(document.getElementById('gGoods').value);
+      const leader = Number(document.getElementById('gLeader').value || 0);
+      const member = Number(document.getElementById('gMember').value || 0);
+      const size = Number(document.getElementById('gSize').value || 2);
+      const hours = Number(document.getElementById('gHours').value || 24);
+      const start = document.getElementById('gStart').value;
+      const end = document.getElementById('gEnd').value;
+      if (!name) { AdminUI.showToast('请输入活动名称', 'warning'); return; }
+      if (!goodsId) { AdminUI.showToast('请选择拼团商品', 'warning'); return; }
+      if (leader <= 0 || member <= 0) { AdminUI.showToast('拼团价格必须大于 0', 'warning'); return; }
+      if (!start || !end || end.replace('T', ' ') <= start.replace('T', ' ')) { AdminUI.showToast('请选择有效的活动时间', 'warning'); return; }
+      const body = {
+        name: name, goodsId: goodsId, leaderPrice: leader, memberPrice: member,
+        groupSize: size, validHours: hours, startTime: start.replace('T', ' '), endTime: end.replace('T', ' ')
+      };
+      const url = API + '/group-buys' + (EDIT_ID ? '/' + EDIT_ID : '');
+      try {
+        if (EDIT_ID) await AdminUI.put(url, body); else await AdminUI.post(url, body);
+        AdminUI.closeModal('gbModal');
+        AdminUI.showToast(EDIT_ID ? '活动已更新' : '活动已新增', 'success');
+        loadGbs(EDIT_ID ? PAGE : 1);
+      } catch (e) { }
+    }
+
+    (async function () {
+      const ok = await AdminUI.initPage({ key: 'group-buy', breadcrumb: ['营销管理', '拼团活动'], need: ['marketing:list'] });
+      if (!ok) return;
+      if (AdminUI.can('marketing:add')) document.getElementById('btnAdd').style.display = '';
+      try { GOODS = await AdminUI.get(API + '/marketing/goods-options') || []; } catch (e) { GOODS = []; }
+      fillGoods();
+      document.getElementById('gbPagination').addEventListener('click', function (e) {
+        const b = e.target.closest('button[data-page]');
+        if (!b || b.disabled) return;
+        loadGbs(Number(b.getAttribute('data-page')));
+      });
+      const debouncedSearch = AdminUI.debounce(doSearch, 300);
+      document.getElementById('fKeyword').addEventListener('input', debouncedSearch);
+      document.getElementById('gbPagination').addEventListener('change', function (e) {
+        if (e.target.classList.contains('page-size-select')) {
+          SIZE = parseInt(e.target.value, 10);
+          loadGbs(1);
+        }
+      });
+      loadGbs(1);
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <link rel="icon" type="image/png" href="images/logo.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>售后中心 - 随心商城</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .as-page { padding: 20px 0 40px; min-height: 500px; }
+    .as-tabs { background-color: var(--bg-white); display: flex; border-bottom: 2px solid var(--border); margin-bottom: 16px; border-radius: 4px 4px 0 0; flex-wrap: wrap; }
+    .as-tab { padding: 14px 24px; font-size: 14px; color: var(--text-secondary); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
+    .as-tab:hover { color: var(--primary); }
+    .as-tab.active { color: var(--primary); font-weight: 700; border-bottom-color: var(--primary); }
+    .as-card { background-color: var(--bg-white); margin-bottom: 12px; border-radius: 4px; overflow: hidden; padding: 16px 20px; }
+    .as-card-header { display: flex; align-items: center; font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; }
+    .as-card-header .as-no { margin-right: 20px; }
+    .as-card-header .as-status { margin-left: auto; font-weight: 700; }
+    .as-body { display: flex; align-items: center; gap: 12px; }
+    .as-body img { width: 60px; height: 60px; object-fit: contain; background-color: var(--bg); border-radius: 4px; }
+    .as-info { flex: 1; }
+    .as-info .as-name { font-size: 13px; color: var(--text); margin-bottom: 4px; }
+    .as-info .as-meta { font-size: 12px; color: var(--text-tertiary); }
+    .as-amount { font-size: 15px; color: var(--primary); font-weight: 700; margin-right: 12px; }
+    .as-actions { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+    .as-btn { padding: 6px 16px; font-size: 12px; border-radius: 4px; cursor: pointer; border: none; background-color: var(--primary); color: #fff; }
+    .as-btn-outline { background-color: var(--bg-white); border: 1px solid var(--text-placeholder); color: var(--text-secondary); }
+    .as-btn-text { background: none; color: var(--text-secondary); padding: 4px 0; }
+    .as-handle { font-size: 12px; color: var(--text-tertiary); margin-top: 8px; }
+    .status-1 { color: var(--primary); }
+    .status-2 { color: var(--info); }
+    .status-3 { color: var(--success); }
+    .status-4 { color: var(--text-tertiary); }
+    /* 申请/详情表单 */
+    .as-form { background-color: var(--bg-white); border-radius: 4px; padding: 24px; }
+    .as-form h3 { font-size: 15px; color: var(--text); margin-bottom: 18px; }
+    .as-field { margin-bottom: 18px; }
+    .as-field label { display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; }
+    .as-types { display: flex; gap: 12px; }
+    .as-type { flex: 1; padding: 14px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; text-align: center; font-size: 13px; color: var(--text); transition: all 0.2s; }
+    .as-type.active { border-color: var(--primary); color: var(--primary); background-color: rgba(30,158,150,0.05); }
+    .as-type.disabled { opacity: 0.4; cursor: not-allowed; }
+    .as-input, .as-textarea { width: 100%; border: 1px solid var(--border); border-radius: 4px; padding: 10px; font-size: 13px; box-sizing: border-box; }
+    .as-textarea { min-height: 80px; resize: vertical; }
+    .as-hint { font-size: 12px; color: var(--text-tertiary); margin-top: 6px; }
+    .as-submit { margin-top: 8px; padding: 10px 32px; background-color: var(--primary); color: #fff; font-size: 14px; border: none; border-radius: 4px; cursor: pointer; }
+    .as-back { display: inline-block; margin-bottom: 16px; font-size: 13px; color: var(--text-secondary); cursor: pointer; }
+    .as-back:hover { color: var(--primary); }
+    .as-detail-row { display: flex; padding: 10px 0; border-bottom: 1px solid var(--border-light); font-size: 13px; }
+    .as-detail-row .k { width: 90px; color: var(--text-tertiary); flex-shrink: 0; }
+    .as-detail-row .v { color: var(--text); flex: 1; }
+    .as-timeline { margin-top: 16px; }
+    .as-timeline .tl-item { font-size: 12px; color: var(--text-secondary); padding-left: 16px; position: relative; margin-bottom: 10px; }
+    .as-timeline .tl-item::before { content: ''; position: absolute; left: 0; top: 5px; width: 7px; height: 7px; border-radius: 50%; background-color: var(--primary); }
+  </style>
+</head>
+<body>
+
+<header class="simple-header">
+  <div class="container">
+    <a href="index.html" class="logo"><img src="images/logo.png" alt="随心商城"></a>
+    <span class="page-title">售后中心</span>
+    <div class="header-right">
+      <a href="index.html">返回首页</a>
+      <span class="sep">|</span>
+      <a href="orders.html">我的订单</a>
+    </div>
+  </div>
+</header>
+
+<div class="container as-page">
+  <a class="as-back" id="jsBack" href="after-sale.html">← 返回列表</a>
+  <!-- 列表视图 -->
+  <div id="jsListView">
+    <div class="as-tabs" id="jsTabs"></div>
+    <div id="jsList"></div>
+    <div class="pagination" id="jsPager"></div>
+  </div>
+  <!-- 申请视图 -->
+  <div id="jsApplyView" style="display:none;">
+    <div class="as-form" id="jsApplyForm"></div>
+  </div>
+  <!-- 详情视图 -->
+  <div id="jsDetailView" style="display:none;">
+    <div class="as-form" id="jsDetail"></div>
+  </div>
+</div>
+
+<div class="footer-copyright">
+  <div class="container">
+    <div class="footer-logo"><img src="images/logo.png" alt="随心商城"></div>
+    <div class="footer-info">
+      <div class="footer-links-row">
+        <a href="index.html">商城首页</a>
+        <span class="sep">|</span>
+        <a href="service.html">服务中心</a>
+        <span class="sep">|</span>
+        <a href="orders.html">我的订单</a>
+        <span class="sep">|</span>
+        <a href="after-sale.html">售后中心</a>
+        <span class="sep">|</span>
+        <a href="coupons.html">我的优惠券</a>
+      </div>
+      <div class="footer-record">© 2026 shop-open · 开源演示项目，非真实商户</div>
+    </div>
+  </div>
+  <div class="footer-slogan">随心选好物，品质看得见</div>
+</div>
+
+<script src="js/ui.js"></script>
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/page-after-sale.js"></script>
+<script src="js/live.js"></script>
+</body>
+</html>

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>积分管理 - 商城后台管理系统</title>
+  <link rel="stylesheet" href="../../css/common.css?v=20260904e">
+  <style>
+    #adjustModal .modal { width: 560px; }
+    #adjustModal .adjust-type-group { display: flex; gap: 16px; }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main-wrapper">
+      <header class="header" id="header"></header>
+      <main class="content">
+        <div class="page-header">
+          <div><h1 class="page-title">积分管理</h1><p class="page-desc">查看会员积分获取与消耗流水，支持手动调整会员积分</p></div>
+          <div class="btn-group">
+            <button class="btn btn-primary" id="btnAdjustTop" onclick="openAdjust()" style="display:none;">🎯 手动调整积分</button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:16px;">
+          <div class="card"><div class="card-body"><div style="font-size:12px;color:var(--text-secondary);">今日发放积分</div><div style="font-size:24px;font-weight:700;color:var(--success);margin-top:6px;" id="statGrant">0</div></div></div>
+          <div class="card"><div class="card-body"><div style="font-size:12px;color:var(--text-secondary);">今日消耗积分</div><div style="font-size:24px;font-weight:700;color:var(--danger);margin-top:6px;" id="statConsume">0</div></div></div>
+          <div class="card"><div class="card-body"><div style="font-size:12px;color:var(--text-secondary);">会员积分总余额</div><div style="font-size:24px;font-weight:700;color:var(--primary);margin-top:6px;" id="statBalance">0</div></div></div>
+          <div class="card"><div class="card-body"><div style="font-size:12px;color:var(--text-secondary);">持有积分会员</div><div style="font-size:24px;font-weight:700;margin-top:6px;" id="statHolders">0</div></div></div>
+        </div>
+        <div class="filter-bar">
+          <div class="filter-row">
+            <div class="filter-item"><label>会员</label><input type="text" id="fMember" class="form-control" placeholder="昵称/手机"></div>
+            <div class="filter-item"><label>变动类型</label><select id="fType" class="form-control"><option value="">全部</option><option value="1">获取</option><option value="2">消费</option><option value="3">手动调整</option></select></div>
+            <div class="filter-item"><label>变动时间</label><div style="display:flex;gap:4px;align-items:center;"><input type="date" id="fStart" class="form-control" style="width:130px;"><span style="color:var(--text-muted);">-</span><input type="date" id="fEnd" class="form-control" style="width:130px;"></div></div>
+            <div class="filter-actions"><button class="btn btn-primary" onclick="resetSearch()">重置</button></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body no-padding">
+            <div class="table-wrapper">
+              <table class="table" id="logTable">
+                <thead><tr><th style="min-width:160px;">会员</th><th>变动类型</th><th>变动积分</th><th style="min-width:160px;">原因</th><th>操作人</th><th style="min-width:150px;">变动时间</th></tr></thead>
+                <tbody id="logBody"></tbody>
+              </table>
+            </div>
+            <div class="pagination" id="logPagination"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="adjustModal">
+    <div class="modal">
+      <div class="modal-header"><h3 class="modal-title">手动调整积分</h3><button class="modal-close" data-close-modal="adjustModal">✕</button></div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">选择会员 <span class="required">*</span></label>
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="ajKeyword" class="form-control" maxlength="30" placeholder="输入昵称/手机号搜索">
+            <button class="btn btn-secondary btn-sm" onclick="searchMembers()">搜索</button>
+          </div>
+          <div id="ajCands" style="margin-top:8px;max-height:200px;overflow-y:auto;"></div>
+        </div>
+        <div class="form-group"><label class="form-label">调整类型 <span class="required">*</span></label>
+          <div class="adjust-type-group">
+            <label style="display:flex;align-items:center;gap:4px;"><input type="radio" name="adjustDir" value="add" checked> 增加</label>
+            <label style="display:flex;align-items:center;gap:4px;"><input type="radio" name="adjustDir" value="cut"> 扣减</label>
+          </div>
+        </div>
+        <div class="form-group"><label class="form-label">积分数 <span class="required">*</span></label><input type="number" id="ajAmount" class="form-control" min="1" max="100000000" placeholder="请输入积分数量"></div>
+        <div class="form-group"><label class="form-label">调整原因 <span class="required">*</span></label><input type="text" id="ajReason" class="form-control" maxlength="200" placeholder="请输入调整原因"></div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-close-modal="adjustModal">取消</button><button class="btn btn-primary" onclick="saveAdjust()">确认调整</button></div>
+    </div>
+  </div>
+
+  <script src="../../js/common.js?v=20260904e"></script>
+  <script>
+    const API = AdminUI.API_BASE;
+    let SIZE = 10;
+    const F = { member: '', type: '', start_date: '', end_date: '' };
+    const TYPE_TEXT = { 1: '获取', 2: '消费', 3: '手动调整' };
+    const TYPE_CLS = { 1: 'success', 2: 'danger', 3: 'info' };
+    let PAGE = 1;
+    let AJ = { member: null };
+
+    function esc(v) { return AdminUI.escHtml(v === null || v === undefined ? '' : String(v)); }
+
+    function changeHtml(v) {
+      const n = Number(v);
+      if (n > 0) return '<b style="color:var(--success);">+' + n + '</b>';
+      return '<b style="color:var(--danger);">' + n + '</b>';
+    }
+
+    function renderStats(s) {
+      if (!s) return;
+      document.getElementById('statGrant').textContent = s.todayGrant || 0;
+      document.getElementById('statConsume').textContent = s.todayConsume || 0;
+      document.getElementById('statBalance').textContent = Number(s.totalBalance || 0).toLocaleString('zh-CN');
+      document.getElementById('statHolders').textContent = s.holders || 0;
+    }
+
+    function loadLogs(page) {
+      PAGE = page || 1;
+      const params = {
+        page: PAGE, page_size: SIZE,
+        member: F.member || undefined,
+        type: F.type === '' ? undefined : F.type,
+        start_date: F.start_date || undefined,
+        end_date: F.end_date || undefined
+      };
+      AdminUI.get(API + '/points/logs', params).then(function (data) {
+        if (!data) return;
+        renderStats(data.stats);
+        renderRows(data.list || [], data.total || 0);
+      });
+    }
+
+    function renderRows(list, total) {
+      const rows = list.map(function (lg) {
+        return '<tr>' +
+          '<td><div style="font-weight:500;">' + esc(lg.memberName) + '</div>' +
+          (lg.memberPhone ? '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">' + esc(lg.memberPhone) + '</div>' : '') + '</td>' +
+          '<td><span class="badge-tag ' + (TYPE_CLS[lg.type] || 'default') + '">' + esc(lg.typeText || TYPE_TEXT[lg.type] || '-') + '</span></td>' +
+          '<td>' + changeHtml(lg.changeValue) + '</td>' +
+          '<td class="cell-break"><span class="cell-ellipsis" style="max-width:220px;" title="' + esc(lg.reason) + '">' + esc(lg.reason || '—') + '</span></td>' +
+          '<td style="font-size:12px;color:var(--text-secondary);">' + esc(lg.operatorName || '系统') + '</td>' +
+          '<td style="font-size:12px;color:var(--text-secondary);">' + AdminUI.fmtTime(lg.createdAt) + '</td>' +
+          '</tr>';
+      }).join('');
+      document.getElementById('logBody').innerHTML = rows || '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:40px 0;">暂无积分流水</td></tr>';
+      AdminUI.renderPagination('logPagination', PAGE, Math.max(1, Math.ceil(total / SIZE)), total, SIZE);
+    }
+
+    function doSearch() {
+      F.member = document.getElementById('fMember').value.trim();
+      F.type = document.getElementById('fType').value;
+      F.start_date = document.getElementById('fStart').value;
+      F.end_date = document.getElementById('fEnd').value;
+      loadLogs(1);
+    }
+
+    function resetSearch() {
+      ['fMember', 'fStart', 'fEnd'].forEach(function (id) { document.getElementById(id).value = ''; });
+      document.getElementById('fType').value = '';
+      F.member = ''; F.type = ''; F.start_date = ''; F.end_date = '';
+      loadLogs(1);
+    }
+
+    function openAdjust() {
+      AJ.member = null;
+      document.getElementById('ajKeyword').value = '';
+      document.getElementById('ajCands').innerHTML = '';
+      document.getElementById('ajAmount').value = '';
+      document.getElementById('ajReason').value = '';
+      document.querySelector('input[name="adjustDir"][value="add"]').checked = true;
+      AdminUI.openModal('adjustModal');
+    }
+
+    async function searchMembers() {
+      const kw = document.getElementById('ajKeyword').value.trim();
+      if (!kw) { AdminUI.showToast('请输入昵称或手机号', 'warning'); return; }
+      const box = document.getElementById('ajCands');
+      box.innerHTML = '<div style="padding:12px;color:var(--text-muted);font-size:12px;text-align:center;">搜索中…</div>';
+      try {
+        const data = await AdminUI.get(API + '/members', { page: 1, page_size: 10, keyword: kw });
+        const list = (data && data.list) || [];
+        if (!list.length) { box.innerHTML = '<div style="padding:12px;color:var(--text-muted);font-size:12px;text-align:center;">未找到匹配会员</div>'; return; }
+        box.innerHTML = list.map(function (m) {
+          return '<div style="padding:8px 10px;border:1px solid var(--border-light);border-radius:var(--radius);margin-bottom:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;" onclick="pickAdjust(' + m.id + ')" data-mid="' + m.id + '">' +
+            '<div><span style="font-weight:500;">' + esc(m.nickname || '未命名') + '</span><span style="color:var(--text-muted);font-size:12px;margin-left:8px;">' + esc(m.phone || '') + '</span></div>' +
+            '<div style="font-size:13px;">积分 <b style="color:var(--primary);">' + (m.points || 0) + '</b></div></div>';
+        }).join('');
+      } catch (e) { }
+    }
+
+    function pickAdjust(id) {
+      document.querySelectorAll('#ajCands [data-mid]').forEach(function (el) {
+        const cur = el.getAttribute('data-mid');
+        el.style.borderColor = cur === String(id) ? 'var(--primary)' : 'var(--border-light)';
+        el.style.background = cur === String(id) ? 'var(--primary-light)' : '';
+      });
+      const hit = document.querySelector('#ajCands [data-mid="' + id + '"]');
+      const nickname = hit ? hit.querySelector('span').textContent : '会员#' + id;
+      const ptsText = hit ? hit.querySelector('b').textContent : '0';
+      AJ.member = { id: id, nickname: nickname, points: Number(ptsText) || 0 };
+      AdminUI.showToast('已选择会员：' + nickname + '（当前积分 ' + AJ.member.points + '）', 'success');
+    }
+
+    async function saveAdjust() {
+      if (!AJ.member) { AdminUI.showToast('请先选择会员', 'warning'); return; }
+      const dirEl = document.querySelector('input[name="adjustDir"]:checked');
+      const amt = Number(document.getElementById('ajAmount').value);
+      const reason = document.getElementById('ajReason').value.trim();
+      if (!(amt >= 1)) { AdminUI.showToast('请输入正确的积分数', 'warning'); return; }
+      if (!reason) { AdminUI.showToast('请输入调整原因', 'warning'); return; }
+      const change = dirEl.value === 'add' ? amt : -amt;
+      const mid = AJ.member.id;
+      try {
+        const res = await AdminUI.post(API + '/points/adjust', { memberId: mid, change: change, reason: reason });
+        AdminUI.closeModal('adjustModal');
+        AdminUI.showToast('积分调整成功，当前积分 ' + res.points, 'success');
+        AJ.member = null;
+        loadLogs(1);
+      } catch (e) { }
+    }
+
+    (async function () {
+      const ok = await AdminUI.initPage({ key: 'points', breadcrumb: ['用户管理', '积分管理'], need: ['member:list'] });
+      if (!ok) return;
+      if (AdminUI.can('member:edit')) document.getElementById('btnAdjustTop').style.display = '';
+      const pg = document.getElementById('logPagination');
+      pg.addEventListener('click', function (e) {
+        const b = e.target.closest('button[data-page]');
+        if (!b || b.disabled) return;
+        loadLogs(Number(b.getAttribute('data-page')));
+      });
+      const debouncedSearch = AdminUI.debounce(doSearch, 300);
+      document.getElementById('fMember').addEventListener('input', debouncedSearch);
+      document.getElementById('fType').addEventListener('change', doSearch);
+      document.getElementById('fStart').addEventListener('change', doSearch);
+      document.getElementById('fEnd').addEventListener('change', doSearch);
+      pg.addEventListener('change', function (e) {
+        if (e.target.classList.contains('page-size-select')) {
+          SIZE = parseInt(e.target.value, 10);
+          loadLogs(1);
+        }
+      });
+      await loadLogs(1);
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>会员列表 - 商城后台管理系统</title>
+  <link rel="stylesheet" href="../../css/common.css?v=20260904e">
+  <style>
+    #editModal .modal { width: 520px; }
+    #adjustModal .modal { width: 560px; }
+    #adjustModal .adjust-type-group { display: flex; gap: 16px; }
+    .member-row { display: flex; align-items: center; gap: 10px; }
+    .member-avatar { width: 34px; height: 34px; border-radius: 50%; background: #eef2ff; color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 14px; overflow: hidden; flex-shrink: 0; }
+    .member-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .detail-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0 4px; }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main-wrapper">
+      <header class="header" id="header"></header>
+      <main class="content">
+        <div class="page-header">
+          <div><h1 class="page-title">会员列表</h1><p class="page-desc">管理商城注册会员，支持筛选、资料编辑、启禁用与密码重置</p></div>
+          <div class="btn-group">
+            <button class="btn btn-primary" id="btnAdjustTop" onclick="openAdjust()" style="display:none;">🎯 调整积分</button>
+          </div>
+        </div>
+        <div class="filter-bar">
+          <div class="filter-row">
+            <div class="filter-item"><label>关键词</label><input type="text" id="fKeyword" class="form-control" placeholder="昵称/手机/邮箱"></div>
+            <div class="filter-item"><label>会员等级</label><select id="fLevel" class="form-control"><option value="">全部等级</option></select></div>
+            <div class="filter-item"><label>状态</label><select id="fStatus" class="form-control"><option value="">全部</option><option value="1">启用</option><option value="0">禁用</option></select></div>
+            <div class="filter-item"><label>注册时间</label><div><input type="date" id="fStart" class="form-control"><span style="color:var(--text-muted);">-</span><input type="date" id="fEnd" class="form-control"></div></div>
+            <div class="filter-actions"><button class="btn btn-primary" onclick="resetSearch()">重置</button></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body no-padding">
+            <div class="table-wrapper">
+              <table class="table" id="memberTable">
+                <thead><tr><th style="min-width:170px;">会员</th><th>等级</th><th>当前积分</th><th>累计消费</th><th>订单数</th><th style="min-width:150px;">注册时间</th><th>状态</th><th class="col-actions">操作</th></tr></thead>
+                <tbody id="memberBody"></tbody>
+              </table>
+            </div>
+            <div class="pagination" id="memberPagination"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="drawer-overlay" id="memberDetail-overlay" onclick="AdminUI.closeDrawer('memberDetail')"></div>
+  <div class="drawer" id="memberDetail">
+    <div class="drawer-header"><h3 class="drawer-title">会员详情</h3><button class="modal-close" data-close-drawer="memberDetail">✕</button></div>
+    <div class="drawer-body" id="detailBody"></div>
+    <div class="drawer-footer"><button class="btn btn-secondary" onclick="AdminUI.closeDrawer('memberDetail')">关闭</button></div>
+  </div>
+
+  <div class="modal-overlay" id="editModal">
+    <div class="modal">
+      <div class="modal-header"><h3 class="modal-title">编辑会员资料</h3><button class="modal-close" data-close-modal="editModal">✕</button></div>
+      <div class="modal-body">
+        <div class="form-group"><label class="form-label">昵称 <span class="required">*</span></label><input type="text" id="eNickname" class="form-control" maxlength="50" placeholder="请输入会员昵称"></div>
+        <div class="form-group"><label class="form-label">手机号</label><input type="text" id="ePhone" class="form-control" maxlength="20" placeholder="请输入手机号"></div>
+        <div class="form-group"><label class="form-label">邮箱</label><input type="text" id="eEmail" class="form-control" maxlength="100" placeholder="请输入邮箱"></div>
+        <div class="form-group"><label class="form-label">会员等级</label><select id="eLevel" class="form-control"></select></div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-close-modal="editModal">取消</button><button class="btn btn-primary" onclick="saveEdit()">保存</button></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="adjustModal">
+    <div class="modal">
+      <div class="modal-header"><h3 class="modal-title">调整积分</h3><button class="modal-close" data-close-modal="adjustModal">✕</button></div>
+      <div class="modal-body">
+        <div class="form-group" id="ajSearchGroup">
+          <label class="form-label">选择会员 <span class="required">*</span></label>
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="ajKeyword" class="form-control" maxlength="30" placeholder="输入昵称/手机号搜索">
+            <button class="btn btn-secondary btn-sm" onclick="searchMembers()">搜索</button>
+          </div>
+          <div id="ajCands" style="margin-top:8px;max-height:180px;overflow-y:auto;"></div>
+        </div>
+        <div id="ajSel" style="display:none;background:var(--content-bg);border:1px solid var(--border-light);border-radius:var(--radius);padding:12px;margin-bottom:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div><span id="ajSelName" style="font-weight:600;"></span><span id="ajSelPhone" style="color:var(--text-muted);font-size:12px;margin-left:6px;"></span></div>
+            <div style="font-size:13px;">当前积分：<b id="ajSelPoints" style="color:var(--primary);font-size:16px;"></b></div>
+          </div>
+        </div>
+        <div class="form-group"><label class="form-label">调整类型 <span class="required">*</span></label>
+          <div class="adjust-type-group">
+            <label style="display:flex;align-items:center;gap:4px;"><input type="radio" name="adjustDir" value="add" checked> 增加</label>
+            <label style="display:flex;align-items:center;gap:4px;"><input type="radio" name="adjustDir" value="cut"> 扣减</label>
+          </div>
+        </div>
+        <div class="form-group"><label class="form-label">积分数 <span class="required">*</span></label><input type="number" id="ajAmount" class="form-control" min="1" max="100000000" placeholder="请输入积分数量"></div>
+        <div class="form-group"><label class="form-label">调整原因 <span class="required">*</span></label><input type="text" id="ajReason" class="form-control" maxlength="200" placeholder="请输入调整原因"></div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-close-modal="adjustModal">取消</button><button class="btn btn-primary" onclick="saveAdjust()">确认调整</button></div>
+    </div>
+  </div>
+
+  <script src="../../js/common.js?v=20260904e"></script>
+  <script>
+    const API = AdminUI.API_BASE;
+    let SIZE = 10;
+    const F = { keyword: '', level_id: '', status: '', start_date: '', end_date: '' };
+    const ORDER_TEXT = { 1: '待付款', 2: '待发货', 3: '已发货', 4: '已完成', 5: '已取消', 6: '售后中' };
+    const ORDER_CLS = { 1: 'warning', 2: 'primary', 3: 'info', 4: 'success', 5: 'default', 6: 'danger' };
+    let PAGE = 1;
+    let CUR = null;
+    let LEVELS = [];
+    let AJ = { member: null };
+
+    function esc(v) { return AdminUI.escHtml(v === null || v === undefined ? '' : String(v)); }
+    function money(v) { return (Number(v || 0)).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+    function statusBadge(status) {
+      return status === 1 ? '<span class="badge-tag success">启用</span>' : '<span class="badge-tag default">禁用</span>';
+    }
+
+    function loadLevels() {
+      return AdminUI.get(API + '/member-levels').then(function (levels) {
+        LEVELS = levels || [];
+        const opts = '<option value="">全部等级</option>' + LEVELS.map(function (l) {
+          return '<option value="' + l.id + '">' + esc(l.levelName) + '</option>';
+        }).join('');
+        const fLevel = document.getElementById('fLevel');
+        if (fLevel && !fLevel.value) fLevel.innerHTML = opts;
+        const eLevel = document.getElementById('eLevel');
+        eLevel.innerHTML = '<option value="">暂不修改等级</option>' + LEVELS.map(function (l) {
+          return '<option value="' + l.id + '">' + esc(l.levelName) + '</option>';
+        }).join('');
+        return LEVELS;
+      }).catch(function () { LEVELS = []; return []; });
+    }
+
+    function levelName(id) {
+      for (var i = 0; i < LEVELS.length; i++) if (LEVELS[i].id === id) return LEVELS[i].levelName;
+      return '';
+    }
+
+    function loadMembers(page) {
+      PAGE = page || 1;
+      const params = {
+        page: PAGE, page_size: SIZE,
+        keyword: F.keyword || undefined,
+        level_id: F.level_id === '' ? undefined : F.level_id,
+        status: F.status === '' ? undefined : F.status,
+        start_date: F.start_date || undefined,
+        end_date: F.end_date || undefined
+      };
+      AdminUI.get(API + '/members', params).then(function (data) {
+        if (!data) return;
+        renderMembers(data.list || [], data.total || 0);
+      });
+    }
+
+    function memberCell(m) {
+      const av = m.avatar ? '<img src="' + esc(m.avatar) + '">' : '👤';
+      return '<div class="member-row"><div class="member-avatar">' + av + '</div><div>' +
+        '<div style="font-weight:500;cursor:pointer;color:var(--primary);" onclick="viewDetail(' + m.id + ')">' + esc(m.nickname || '未命名') + '</div>' +
+        (m.phone ? '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">' + esc(m.phone) + '</div>' : '') + '</div></div>';
+    }
+
+    function renderMembers(list, total) {
+      const canEdit = AdminUI.can('member:edit');
+      const rows = list.map(function (m) {
+        let acts = '<a class="action-link" onclick="viewDetail(' + m.id + ')">详情</a>';
+        if (canEdit) {
+          acts += '<a class="action-link" onclick="openEdit(' + m.id + ')">编辑</a>';
+          acts += '<a class="action-link" onclick="resetPassword(' + m.id + ')">重置密码</a>';
+          acts += m.status === 1
+            ? '<a class="action-link danger" onclick="toggleStatus(' + m.id + ',0)">禁用</a>'
+            : '<a class="action-link success" onclick="toggleStatus(' + m.id + ',1)">启用</a>';
+        }
+        return '<tr>' +
+          '<td>' + memberCell(m) + '</td>' +
+          '<td>' + (m.levelName ? '<span class="badge-tag primary">' + esc(m.levelName) + '</span>' : '<span style="color:var(--text-muted);">-</span>') + '</td>' +
+          '<td style="font-weight:600;">' + (m.points || 0) + '</td>' +
+          '<td class="amount">¥ ' + money(m.totalConsume) + '</td>' +
+          '<td>' + (m.orderCount || 0) + '</td>' +
+          '<td style="font-size:12px;color:var(--text-secondary);">' + AdminUI.fmtTime(m.registeredAt || m.createdAt) + '</td>' +
+          '<td>' + statusBadge(m.status) + '</td>' +
+          '<td class="col-actions">' + acts + '</td>' +
+          '</tr>';
+      }).join('');
+      document.getElementById('memberBody').innerHTML = rows || '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:40px 0;">暂无会员数据</td></tr>';
+      AdminUI.renderPagination('memberPagination', PAGE, Math.max(1, Math.ceil(total / SIZE)), total, SIZE);
+    }
+
+    function doSearch() {
+      F.keyword = document.getElementById('fKeyword').value.trim();
+      F.level_id = document.getElementById('fLevel').value;
+      F.status = document.getElementById('fStatus').value;
+      F.start_date = document.getElementById('fStart').value;
+      F.end_date = document.getElementById('fEnd').value;
+      loadMembers(1);
+    }
+
+    function resetSearch() {
+      ['fKeyword', 'fStart', 'fEnd'].forEach(function (id) { document.getElementById(id).value = ''; });
+      ['fLevel', 'fStatus'].forEach(function (id) { document.getElementById(id).value = ''; });
+      F.keyword = ''; F.level_id = ''; F.status = ''; F.start_date = ''; F.end_date = '';
+      loadMembers(1);
+    }
+
+    function viewDetail(id) {
+      const bodyEl = document.getElementById('detailBody');
+      bodyEl.innerHTML = '<div style="padding:80px 20px;text-align:center;color:var(--text-muted);font-size:13px;"><div style="font-size:30px;margin-bottom:10px;">⏳</div>会员详情加载中…</div>';
+      AdminUI.get(API + '/members/' + id).then(function (d) {
+        if (!d) return;
+        CUR = d;
+        const lv = d.levelName ? '<span class="badge-tag primary" style="margin-left:8px;">' + esc(d.levelName) + '</span>' : '';
+        const av = d.avatar ? '<img src="' + esc(d.avatar) + '" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.6);">' : '<div style="width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:24px;">👤</div>';
+        let acts = '';
+        if (AdminUI.can('member:edit')) {
+          acts += '<button class="btn btn-secondary btn-sm" onclick="openEdit(' + d.id + ')">✏️ 编辑资料</button>';
+          acts += '<button class="btn btn-secondary btn-sm" onclick="resetPassword(' + d.id + ')">🔑 重置密码</button>';
+          acts += d.status === 1
+            ? '<button class="btn btn-danger btn-sm" onclick="toggleStatus(' + d.id + ',0)">🚫 禁用账号</button>'
+            : '<button class="btn btn-success btn-sm" onclick="toggleStatus(' + d.id + ',1)">✅ 启用账号</button>';
+          acts += '<button class="btn btn-primary btn-sm" onclick="openAdjust(' + d.id + ',\'' + esc(d.nickname || '').replace(/'/g, '') + '\',' + (d.points || 0) + ')">🎯 调整积分</button>';
+        }
+        const orderRows = (d.orders || []).map(function (o) {
+          return '<tr>' +
+            '<td style="font-family:monospace;font-size:12px;">' + esc(o.orderNo) + '</td>' +
+            '<td class="amount">¥ ' + money(o.payAmount) + '</td>' +
+            '<td><span class="badge-tag ' + (ORDER_CLS[o.orderStatus] || 'default') + '">' + (ORDER_TEXT[o.orderStatus] || '-') + '</span></td>' +
+            '<td style="font-size:12px;color:var(--text-muted);">' + AdminUI.fmtTime(o.createdAt) + '</td></tr>';
+        }).join('');
+        const logItems = (d.logs || []).map(function (lg) {
+          return '<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content">' +
+            '<div class="timeline-title">' + esc(lg.action) + '</div>' +
+            '<div class="timeline-desc">' + esc(lg.actionType || '') + (lg.ip ? ' · IP ' + esc(lg.ip) : '') + '</div>' +
+            '<div class="timeline-time">' + AdminUI.fmtTime(lg.createdAt) + '</div></div></div>';
+        }).join('');
+        bodyEl.innerHTML =
+          '<div style="background:linear-gradient(135deg,var(--primary),var(--primary-light));color:#fff;padding:20px;border-radius:var(--radius-lg);margin-bottom:16px;">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+          '<div style="display:flex;align-items:center;gap:14px;">' + av +
+          '<div><div style="display:flex;align-items:center;font-size:18px;font-weight:700;">' + esc(d.nickname || '未命名') + lv + '</div>' +
+          '<div style="font-size:12px;opacity:.85;margin-top:4px;">' + esc(d.phone || '未绑定手机') + (d.email ? ' · ' + esc(d.email) : '') + '</div></div></div>' +
+          '<div>' + (d.status === 1 ? '<span style="background:rgba(255,255,255,.2);padding:4px 10px;border-radius:20px;font-size:12px;">启用</span>' : '<span style="background:rgba(0,0,0,.25);padding:4px 10px;border-radius:20px;font-size:12px;">禁用</span>') + '</div></div>' +
+          '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px;">' +
+          '<div style="background:rgba(255,255,255,.15);border-radius:var(--radius);padding:10px;"><div style="font-size:11px;opacity:.85;">当前积分</div><div style="font-size:18px;font-weight:700;">' + (d.points || 0) + '</div></div>' +
+          '<div style="background:rgba(255,255,255,.15);border-radius:var(--radius);padding:10px;"><div style="font-size:11px;opacity:.85;">累计消费</div><div style="font-size:18px;font-weight:700;">¥' + money(d.totalConsume) + '</div></div>' +
+          '<div style="background:rgba(255,255,255,.15);border-radius:var(--radius);padding:10px;"><div style="font-size:11px;opacity:.85;">订单数</div><div style="font-size:18px;font-weight:700;">' + (d.orderCount || 0) + '</div></div>' +
+          '<div style="background:rgba(255,255,255,.15);border-radius:var(--radius);padding:10px;"><div style="font-size:11px;opacity:.85;">最后登录</div><div style="font-size:13px;font-weight:600;padding-top:4px;">' + AdminUI.fmtTime(d.lastLoginTime) + '</div></div>' +
+          '</div></div>' +
+          (acts ? '<div class="detail-actions">' + acts + '</div>' : '') +
+          '<div class="detail-section"><div class="detail-section-title">基本信息</div><div class="detail-grid">' +
+          '<div class="detail-item"><span class="detail-label">手机号：</span><span class="detail-value">' + esc(d.phone || '—') + '</span></div>' +
+          '<div class="detail-item"><span class="detail-label">邮箱：</span><span class="detail-value">' + esc(d.email || '—') + '</span></div>' +
+          '<div class="detail-item"><span class="detail-label">会员等级：</span><span class="detail-value">' + esc(d.levelName || '—') + '</span></div>' +
+          '<div class="detail-item"><span class="detail-label">账号状态：</span><span class="detail-value">' + (d.status === 1 ? '启用' : '禁用') + '</span></div>' +
+          '<div class="detail-item"><span class="detail-label">注册时间：</span><span class="detail-value">' + AdminUI.fmtTime(d.registeredAt || d.createdAt) + '</span></div>' +
+          '</div></div>' +
+          '<div class="detail-section"><div class="detail-section-title">最近订单</div>' +
+          (orderRows ? '<table class="table"><thead><tr><th>订单号</th><th>实付金额</th><th>状态</th><th>下单时间</th></tr></thead><tbody>' + orderRows + '</tbody></table>' : '<div style="font-size:12px;color:var(--text-muted);padding:12px 0;">暂无订单记录</div>') +
+          '</div>' +
+          (logItems ? '<div class="detail-section"><div class="detail-section-title">操作日志</div><div class="timeline">' + logItems + '</div></div>' : '');
+        requestAnimationFrame(function () { AdminUI.openDrawer('memberDetail'); });
+      });
+    }
+
+    function openEdit(id) {
+      AdminUI.get(API + '/members/' + id).then(function (d) {
+        if (!d) return;
+        CUR = d;
+        document.getElementById('eNickname').value = d.nickname || '';
+        document.getElementById('ePhone').value = d.phone || '';
+        document.getElementById('eEmail').value = d.email || '';
+        document.getElementById('eLevel').value = d.levelId === null || d.levelId === undefined ? '' : String(d.levelId);
+        AdminUI.openModal('editModal');
+      });
+    }
+
+    async function saveEdit() {
+      const nickname = document.getElementById('eNickname').value.trim();
+      if (!nickname) { AdminUI.showToast('请输入会员昵称', 'warning'); return; }
+      const phone = document.getElementById('ePhone').value.trim();
+      const email = document.getElementById('eEmail').value.trim();
+      const levelEl = document.getElementById('eLevel');
+      const levelId = levelEl.value === '' ? null : Number(levelEl.value);
+      try {
+        await AdminUI.put(API + '/members/' + CUR.id, { nickname: nickname, phone: phone, email: email, levelId: levelId });
+        AdminUI.closeModal('editModal');
+        AdminUI.showToast('会员资料已更新', 'success');
+        loadMembers(PAGE);
+      } catch (e) { }
+    }
+
+    function resetPassword(id) {
+      const v = window.prompt('请输入该会员的新密码（至少 6 位）');
+      if (v === null) return;
+      if (v.trim().length < 6) { AdminUI.showToast('密码至少 6 位', 'error'); return; }
+      AdminUI.confirmAction('确认将该会员密码重置为刚才输入的密码？', async function () {
+        try {
+          await AdminUI.put(API + '/members/' + id + '/reset-password', { password: v.trim() });
+          AdminUI.showToast('密码已重置', 'success');
+        } catch (e) { }
+      });
+    }
+
+    function toggleStatus(id, status) {
+      const act = status === 0 ? '禁用' : '启用';
+      AdminUI.confirmAction('确认' + act + '该会员账号？' + (status === 0 ? '禁用后会员将无法登录。' : ''), async function () {
+        try {
+          await AdminUI.put(API + '/members/' + id + '/status', { status: status });
+          AdminUI.showToast('会员已' + act, 'success');
+          loadMembers(PAGE);
+        } catch (e) { }
+      });
+    }
+
+    function openAdjust(id, name, points) {
+      AJ.member = null;
+      document.getElementById('ajCands').innerHTML = '';
+      document.getElementById('ajKeyword').value = '';
+      document.getElementById('ajAmount').value = '';
+      document.getElementById('ajReason').value = '';
+      document.querySelector('input[name="adjustDir"][value="add"]').checked = true;
+      if (id) {
+        AJ.member = { id: id, nickname: name || '会员#' + id, points: points };
+        document.getElementById('ajSearchGroup').style.display = 'none';
+        document.getElementById('ajSel').style.display = 'block';
+        document.getElementById('ajSelName').textContent = AJ.member.nickname;
+        document.getElementById('ajSelPhone').textContent = '#' + id;
+        document.getElementById('ajSelPoints').textContent = points;
+      } else {
+        document.getElementById('ajSearchGroup').style.display = 'block';
+        document.getElementById('ajSel').style.display = 'none';
+      }
+      AdminUI.openModal('adjustModal');
+    }
+
+    async function searchMembers() {
+      const kw = document.getElementById('ajKeyword').value.trim();
+      if (!kw) { AdminUI.showToast('请输入昵称或手机号', 'warning'); return; }
+      const box = document.getElementById('ajCands');
+      box.innerHTML = '<div style="padding:12px;color:var(--text-muted);font-size:12px;text-align:center;">搜索中…</div>';
+      try {
+        const data = await AdminUI.get(API + '/members', { page: 1, page_size: 10, keyword: kw });
+        const list = (data && data.list) || [];
+        if (!list.length) { box.innerHTML = '<div style="padding:12px;color:var(--text-muted);font-size:12px;text-align:center;">未找到匹配会员</div>'; return; }
+        box.innerHTML = list.map(function (m) {
+          return '<div style="padding:8px 10px;border:1px solid var(--border-light);border-radius:var(--radius);margin-bottom:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;" onclick="pickAdjust(' + m.id + ')">' +
+            '<div><span style="font-weight:500;">' + esc(m.nickname || '未命名') + '</span><span style="color:var(--text-muted);font-size:12px;margin-left:8px;">' + esc(m.phone || '') + '</span>' +
+            (m.levelName ? '<span class="badge-tag primary" style="margin-left:8px;">' + esc(m.levelName) + '</span>' : '') + '</div>' +
+            '<div style="font-size:13px;">积分 <b style="color:var(--primary);">' + (m.points || 0) + '</b></div></div>';
+        }).join('');
+      } catch (e) { }
+    }
+
+    function pickAdjust(id) {
+      AdminUI.get(API + '/members/' + id).then(function (d) {
+        if (!d) return;
+        AJ.member = { id: d.id, nickname: d.nickname || '会员#' + d.id, points: d.points || 0 };
+        document.getElementById('ajCands').innerHTML = '';
+        document.getElementById('ajSel').style.display = 'block';
+        document.getElementById('ajSelName').textContent = AJ.member.nickname;
+        document.getElementById('ajSelPhone').textContent = '#' + d.id;
+        document.getElementById('ajSelPoints').textContent = AJ.member.points;
+      });
+    }
+
+    async function saveAdjust() {
+      if (!AJ.member) { AdminUI.showToast('请先选择会员', 'warning'); return; }
+      const dirEl = document.querySelector('input[name="adjustDir"]:checked');
+      const amt = Number(document.getElementById('ajAmount').value);
+      const reason = document.getElementById('ajReason').value.trim();
+      if (!(amt >= 1)) { AdminUI.showToast('请输入正确的积分数', 'warning'); return; }
+      if (!reason) { AdminUI.showToast('请输入调整原因', 'warning'); return; }
+      const change = dirEl.value === 'add' ? amt : -amt;
+      const mid = AJ.member.id;
+      try {
+        const res = await AdminUI.post(API + '/points/adjust', { memberId: mid, change: change, reason: reason });
+        AdminUI.closeModal('adjustModal');
+        AdminUI.showToast('积分调整成功，当前积分 ' + res.points, 'success');
+        loadMembers(PAGE);
+        const drawer = document.getElementById('memberDetail');
+        if (drawer.classList.contains('show')) viewDetail(mid);
+      } catch (e) { }
+    }
+
+    (async function () {
+      const ok = await AdminUI.initPage({ key: 'member-list', breadcrumb: ['用户管理', '会员列表'], need: ['member:list'] });
+      if (!ok) return;
+      const canEdit = AdminUI.can('member:edit');
+      if (!canEdit) {
+        document.getElementById('btnAdjustTop').style.display = 'none';
+      } else {
+        document.getElementById('btnAdjustTop').style.display = '';
+      }
+      const pg = document.getElementById('memberPagination');
+      pg.addEventListener('click', function (e) {
+        const b = e.target.closest('button[data-page]');
+        if (!b || b.disabled) return;
+        loadMembers(Number(b.getAttribute('data-page')));
+      });
+      const debouncedSearch = AdminUI.debounce(doSearch, 300);
+      document.getElementById('fKeyword').addEventListener('input', debouncedSearch);
+      document.getElementById('fLevel').addEventListener('change', doSearch);
+      document.getElementById('fStatus').addEventListener('change', doSearch);
+      document.getElementById('fStart').addEventListener('change', doSearch);
+      document.getElementById('fEnd').addEventListener('change', doSearch);
+      pg.addEventListener('change', function (e) {
+        if (e.target.classList.contains('page-size-select')) {
+          SIZE = parseInt(e.target.value, 10);
+          loadMembers(1);
+        }
+      });
+      await loadLevels();
+      await loadMembers(1);
+    })();
+  </script>
+</body>
+</html>

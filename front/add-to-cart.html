@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <link rel="icon" type="image/png" href="images/logo.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>加入购物车成功 - 随心商城</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .add-cart-page { padding: 30px 0 40px; min-height: 500px; }
+    .success-box { background-color: var(--bg-white); padding: 32px; border-radius: 4px; margin-bottom: 20px; }
+    .success-header { display: flex; align-items: center; margin-bottom: 24px; }
+    .success-icon { width: 48px; height: 48px; border-radius: 50%; background-color: var(--success); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 24px; margin-right: 16px; flex-shrink: 0; }
+    .success-text h2 { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+    .success-text p { font-size: 13px; color: var(--text-secondary); }
+    .product-info { display: flex; align-items: center; padding: 20px; background-color: var(--bg); border-radius: 4px; margin-bottom: 24px; }
+    .product-info img { width: 100px; height: 100px; object-fit: contain; margin-right: 20px; background-color: var(--bg-white); border-radius: 4px; }
+    .product-info .info-text { flex: 1; }
+    .product-info .info-text h3 { font-size: 15px; color: var(--text); margin-bottom: 6px; }
+    .product-info .info-text .spec { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+    .product-info .info-text .price { font-size: 18px; color: var(--primary); font-weight: 700; }
+    .action-buttons { display: flex; gap: 12px; justify-content: flex-end; }
+    .btn-continue { padding: 10px 28px; background-color: var(--bg-white); border: 1px solid var(--text-placeholder); color: var(--text-secondary); font-size: 14px; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
+    .btn-continue:hover { border-color: var(--primary); color: var(--primary); }
+    .btn-gocart { padding: 10px 28px; background-color: var(--primary); color: #fff; font-size: 14px; font-weight: 500; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
+    .btn-gocart:hover { background-color: var(--primary-hover); box-shadow: 0 4px 12px rgba(30,158,150,0.3); color: #fff; }
+    /* 推荐商品 */
+    .recommend-box { background-color: var(--bg-white); padding: 24px; border-radius: 4px; }
+    .recommend-box h3 { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+    .recommend-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  </style>
+</head>
+<body>
+
+<!-- 简化版导航栏 -->
+<header class="simple-header">
+  <div class="container">
+    <a href="index.html" class="logo"><img src="images/logo.png" alt="随心商城"></a>
+    <span class="page-title">加入购物车</span>
+    <div class="header-right">
+      <a href="index.html">返回首页</a>
+    </div>
+  </div>
+</header>
+
+<div class="container add-cart-page">
+  <div class="success-box">
+    <div class="success-header">
+      <div class="success-icon">✓</div>
+      <div class="success-text">
+        <h2>商品已成功加入购物车！</h2>
+        <p>您可以继续购物，或前往购物车结算</p>
+      </div>
+    </div>
+    <div class="product-info" id="jsInfo">
+      <div class="info-text">
+        <h3>加载中…</h3>
+      </div>
+    </div>
+    <div class="action-buttons">
+      <a href="index.html" class="btn-continue" id="jsContinue">继续购物</a>
+      <a href="cart.html" class="btn-gocart">去购物车结算</a>
+    </div>
+  </div>
+
+  <div class="recommend-box">
+    <h3>猜你喜欢</h3>
+    <div class="recommend-grid" id="jsGuess">
+      <!-- 由JS渲染（GET /goods?is_recommend=1） -->
+    </div>
+  </div>
+</div>
+
+<!-- 页脚 -->
+<div class="footer-copyright">
+  <div class="container">
+    <div class="footer-logo"><img src="images/logo.png" alt="随心商城"></div>
+    <div class="footer-info">
+      <div class="footer-links-row">
+        <a href="index.html">商城首页</a>
+        <span class="sep">|</span>
+        <a href="service.html">服务中心</a>
+        <span class="sep">|</span>
+        <a href="orders.html">我的订单</a>
+        <span class="sep">|</span>
+        <a href="after-sale.html">售后中心</a>
+        <span class="sep">|</span>
+        <a href="coupons.html">我的优惠券</a>
+      </div>
+      <div class="footer-record">© 2026 shop-open · 开源演示项目，非真实商户</div>
+    </div>
+  </div>
+  <div class="footer-slogan">随心选好物，品质看得见</div>
+</div>
+
+<script src="js/ui.js"></script>
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/page-add-to-cart.js"></script>
+<script src="js/live.js"></script>
+</body>
+</html>

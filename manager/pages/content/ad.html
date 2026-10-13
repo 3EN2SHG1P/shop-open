@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>广告管理 - 商城后台管理系统</title>
+  <link rel="stylesheet" href="../../css/common.css?v=20260905b">
+  <style>
+    #adModal .modal { width: 700px; }
+    #posModal .modal { width: 560px; }
+    #adModal .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+    #adModal .form-group-full { grid-column: span 2; }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main-wrapper">
+      <header class="header" id="header"></header>
+      <main class="content">
+        <div class="page-header">
+          <div><h1 class="page-title">广告管理</h1><p class="page-desc">维护各广告位的轮播图、横幅与文字链接</p></div>
+          <div class="btn-group">
+            <button class="btn btn-secondary" id="btnPos" onclick="openPosManager()" style="display:none;">🗂️ 广告位</button>
+            <button class="btn btn-primary" id="btnAdd" onclick="openCreate()" style="display:none;">➕ 新增广告</button>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-body" style="padding:12px 20px;">
+            <div class="filter-bar">
+              <input type="text" class="form-control filter-input" id="fKeyword" placeholder="广告文案">
+              <select class="form-control filter-input" id="fPosition" style="width:160px;"><option value="0">全部广告位</option></select>
+              <select class="form-control filter-input" id="fStatus" style="width:110px;"><option value="">状态</option><option value="1">启用</option><option value="0">停用</option></select>
+              <div class="filter-actions"><button class="btn btn-primary" onclick="resetSearch()">重置</button></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body no-padding">
+            <div class="table-wrapper">
+              <table class="table">
+                <thead><tr><th>广告内容</th><th>广告位</th><th>类型</th><th>链接</th><th>排序</th><th>投放时间</th><th>状态</th><th class="col-actions">操作</th></tr></thead>
+                <tbody id="adBody"></tbody>
+              </table>
+            </div>
+            <div id="adPagination" class="pagination"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="adModal">
+    <div class="modal">
+      <div class="modal-header"><h3 class="modal-title" id="adModalTitle">新增广告</h3><button class="modal-close" data-close-modal="adModal">✕</button></div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group"><label class="form-label">所属广告位 <span class="required">*</span></label><select id="nPosition" class="form-control"><option value="">请选择广告位</option></select></div>
+          <div class="form-group"><label class="form-label">广告类型</label><select id="nType" class="form-control" onchange="onAdTypeChange()"><option value="1">图片</option><option value="2">视频</option><option value="3">文字</option></select></div>
+          <div class="form-group form-group-full" id="mediaGroup"><label class="form-label">媒体资源</label>
+            <div class="img-field">
+              <div class="img-thumb" id="nMediaPreview" style="display:none;">🖼</div>
+              <input type="text" id="nMedia" class="form-control" placeholder="http(s)://...">
+              <button type="button" class="btn btn-sm btn-secondary upload-trigger" id="btnNMedia">上传图片</button>
+            </div>
+          </div>
+          <div class="form-group"><label class="form-label">广告文案</label><input type="text" id="nText" class="form-control" maxlength="200"></div>
+          <div class="form-group"><label class="form-label">跳转链接</label><input type="text" id="nLink" class="form-control" maxlength="300" placeholder="/pages/goods/list?cid=1"></div>
+          <div class="form-group"><label class="form-label">排序值</label><input type="number" id="nSort" class="form-control" min="0" value="0"></div>
+          <div class="form-group"><label class="form-label">状态</label><select id="nStatus" class="form-control"><option value="1">启用</option><option value="0">停用</option></select></div>
+          <div class="form-group"><label class="form-label">开始时间</label><input type="datetime-local" id="nStart" class="form-control"></div>
+          <div class="form-group"><label class="form-label">结束时间</label><input type="datetime-local" id="nEnd" class="form-control"></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-close-modal="adModal">取消</button><button class="btn btn-primary" onclick="saveAd()">保存</button></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="posModal">
+    <div class="modal">
+      <div class="modal-header"><h3 class="modal-title">广告位管理</h3><button class="modal-close" data-close-modal="posModal">✕</button></div>
+      <div class="modal-body">
+        <div class="btn-group" style="margin-bottom:10px;"><button class="btn btn-primary btn-sm" id="btnPosAdd" onclick="openPosEdit()">➕ 新增广告位</button></div>
+        <div class="table-wrapper">
+          <table class="table">
+            <thead><tr><th>广告位名称</th><th>尺寸</th><th>广告数</th><th>状态</th><th class="col-actions">操作</th></tr></thead>
+            <tbody id="posBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="posEditModal">
+    <div class="modal" style="width:420px;">
+      <div class="modal-header"><h3 class="modal-title" id="posEditTitle">新增广告位</h3><button class="modal-close" data-close-modal="posEditModal">✕</button></div>
+      <div class="modal-body">
+        <div class="form-group"><label class="form-label">广告位名称 <span class="required">*</span></label><input type="text" id="pName" class="form-control" maxlength="50"></div>
+        <div class="form-group"><label class="form-label">尺寸规格</label><input type="text" id="pSize" class="form-control" maxlength="50" placeholder="如 750x300"></div>
+        <div class="form-group"><label class="form-label">状态</label><select id="pStatus" class="form-control"><option value="1">启用</option><option value="0">停用</option></select></div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-close-modal="posEditModal">取消</button><button class="btn btn-primary" onclick="savePos()">保存</button></div>
+    </div>
+  </div>
+
+  <script src="../../js/common.js?v=20260905b"></script>
+  <script>
+    const API = AdminUI.API_BASE;
+    let EDIT_ID = null;
+    let POS_EDIT_ID = null;
+    let PAGE = 1;
+    let SIZE = 10;
+    const F = { keyword: '', position_id: 0, status: '' };
+    let POSITIONS = [];
+    function esc(v) { return AdminUI.escHtml(v === null || v === undefined ? '' : String(v)); }
+    function typeBadge(t) { return '<span class="badge-tag ' + (t === 1 ? 'info' : (t === 2 ? 'warning' : 'default')) + '">' + (t === 1 ? '图片' : (t === 2 ? '视频' : '文字')) + '</span>'; }
+
+    function loadPositions() {
+      AdminUI.get(API + '/ad-positions').then(function (list) {
+        POSITIONS = list || [];
+        const fSel = document.getElementById('fPosition');
+        fSel.innerHTML = '<option value="0">全部广告位</option>' + POSITIONS.map(function (p) { return '<option value="' + p.id + '">' + esc(p.name) + '</option>'; }).join('');
+        if (F.position_id) fSel.value = String(F.position_id);
+        const aSel = document.getElementById('nPosition');
+        aSel.innerHTML = '<option value="">请选择广告位</option>' + POSITIONS.map(function (p) { return '<option value="' + p.id + '">' + esc(p.name) + '（' + esc(p.size || '') + '）</option>'; }).join('');
+        renderPosTable();
+      }).catch(function () { });
+    }
+
+    function renderPosTable() {
+      document.getElementById('posBody').innerHTML = (POSITIONS || []).map(function (p) {
+        return '<tr><td style="font-weight:600;">' + esc(p.name) + '</td><td>' + esc(p.size || '—') + '</td>' +
+          '<td>' + (p.adCount || 0) + '</td><td>' + (p.status === 1 ? '<span class="badge-tag success">启用</span>' : '<span class="badge-tag default">停用</span>') + '</td>' +
+          '<td class="col-actions">' +
+          (AdminUI.can('content:edit') ? '<a class="action-link" onclick="openPosEdit(' + p.id + ')">编辑</a>' : '') +
+          (AdminUI.can('content:delete') ? '<a class="action-link danger" onclick="removePos(' + p.id + ')">删除</a>' : '') +
+          '</td></tr>';
+      }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px 0;">暂无广告位</td></tr>';
+    }
+
+    function doSearch() {
+      F.keyword = document.getElementById('fKeyword').value.trim();
+      F.position_id = Number(document.getElementById('fPosition').value || 0);
+      F.status = document.getElementById('fStatus').value;
+      loadAds(1);
+    }
+    function resetSearch() {
+      document.getElementById('fKeyword').value = '';
+      document.getElementById('fPosition').value = '0';
+      document.getElementById('fStatus').value = '';
+      F.keyword = ''; F.position_id = 0; F.status = ''; loadAds(1);
+    }
+
+    function loadAds(page) {
+      PAGE = page || 1;
+      const params = { page: PAGE, page_size: SIZE };
+      if (F.keyword) params.keyword = F.keyword;
+      if (F.position_id) params.position_id = F.position_id;
+      if (F.status !== '') params.status = F.status;
+      AdminUI.get(API + '/ads', params).then(function (data) {
+        if (!data) return;
+        const rows = (data.list || []).map(function (a) {
+          let media;
+          if (a.type === 1 && a.image) media = '<img src="' + esc(a.image) + '" alt="" style="width:88px;height:40px;object-fit:cover;border-radius:6px;border:1px solid #eee;">';
+          else if (a.type === 2) media = '<span class="badge-tag warning">视频</span>';
+          else media = '<span style="color:var(--text-muted);">' + esc(a.text || '—') + '</span>';
+          return '<tr>' +
+            '<td style="min-width:150px;">' + media + (a.text ? '<div style="font-size:12px;margin-top:4px;">' + esc(a.text) + '</div>' : '') + '</td>' +
+            '<td><span class="badge-tag primary">' + esc(a.positionName || '广告位#' + a.positionId) + '</span></td>' +
+            '<td>' + typeBadge(a.type) + '</td>' +
+            '<td style="font-size:12px;color:var(--text-muted);max-width:150px;">' + esc(a.link || '—') + '</td>' +
+            '<td>' + a.sort + '</td>' +
+            '<td style="font-size:12px;">' + esc((a.startTime || '—').slice(0, 16)) + '<br><span style="color:var(--text-muted);">至 ' + esc((a.endTime || '—').slice(0, 16)) + '</span></td>' +
+            '<td>' + (a.status === 1 ? '<span class="badge-tag success">启用</span>' : '<span class="badge-tag default">停用</span>') + '</td>' +
+            '<td class="col-actions">' +
+            (AdminUI.can('content:edit') ? '<a class="action-link" onclick="openEdit(' + a.id + ')">编辑</a>' : '') +
+            (AdminUI.can('content:delete') ? '<a class="action-link danger" onclick="removeAd(' + a.id + ')">删除</a>' : '') +
+            '</td></tr>';
+        }).join('');
+        document.getElementById('adBody').innerHTML = rows || '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:40px 0;">暂无广告</td></tr>';
+        AdminUI.renderPagination('adPagination', PAGE, Math.max(1, Math.ceil(data.total / SIZE)), data.total, SIZE);
+      });
+    }
+
+    function renderMediaPreview() {
+      const t = Number(document.getElementById('nType').value);
+      const pv = document.getElementById('nMediaPreview');
+      if (t !== 1) return;
+      const url = document.getElementById('nMedia').value.trim();
+      pv.style.display = AdminUI.isImgSrc(url) ? '' : 'none';
+      pv.innerHTML = AdminUI.isImgSrc(url) ? AdminUI.imgSrcHtml(url, 'ad') : '🖼';
+    }
+
+    function syncAdType() {
+      const t = Number(document.getElementById('nType').value);
+      const media = document.getElementById('nMedia');
+      const g = document.getElementById('mediaGroup');
+      const pv = document.getElementById('nMediaPreview');
+      const btn = document.getElementById('btnNMedia');
+      pv.style.display = 'none';
+      if (t === 3) { g.style.display = 'none'; return; }
+      g.style.display = '';
+      if (t === 1) {
+        media.placeholder = '图片 http(s):// 外链，或点击「上传图片」选择本地图片';
+        btn.style.display = '';
+        renderMediaPreview();
+      } else {
+        media.placeholder = '视频 http(s):// 外链地址';
+        btn.style.display = 'none';
+      }
+    }
+
+    function onAdTypeChange() {
+      syncAdType();
+      document.getElementById('nMedia').value = '';
+      document.getElementById('nMediaPreview').innerHTML = '🖼';
+      document.getElementById('nMediaPreview').style.display = 'none';
+    }
+
+    function openCreate() {
+      EDIT_ID = null;
+      document.getElementById('adModalTitle').textContent = '新增广告';
+      document.getElementById('nPosition').value = '';
+      document.getElementById('nType').value = '1';
+      document.getElementById('nMedia').value = '';
+      document.getElementById('nText').value = '';
+      document.getElementById('nLink').value = '';
+      document.getElementById('nSort').value = '0';
+      document.getElementById('nStatus').value = '1';
+      document.getElementById('nStart').value = '';
+      document.getElementById('nEnd').value = '';
+      syncAdType();
+      AdminUI.openModal('adModal');
+    }
+
+    function openEdit(id) {
+      AdminUI.findRow(API + '/ads', id).then(function (a) {
+        if (!a) return;
+        EDIT_ID = id;
+        document.getElementById('adModalTitle').textContent = '编辑广告';
+        document.getElementById('nPosition').value = String(a.positionId);
+        document.getElementById('nType').value = String(a.type);
+        document.getElementById('nMedia').value = a.type === 1 ? (a.image || '') : (a.video || '');
+        document.getElementById('nText').value = a.text || '';
+        document.getElementById('nLink').value = a.link || '';
+        document.getElementById('nSort').value = a.sort;
+        document.getElementById('nStatus').value = String(a.status);
+        document.getElementById('nStart').value = (a.startTime || '').slice(0, 16);
+        document.getElementById('nEnd').value = (a.endTime || '').slice(0, 16);
+        syncAdType();
+        AdminUI.openModal('adModal');
+      });
+    }
+
+    async function saveAd() {
+      const positionId = Number(document.getElementById('nPosition').value);
+      const type = Number(document.getElementById('nType').value);
+      if (!positionId) { AdminUI.showToast('请选择广告位', 'warning'); return; }
+      const media = document.getElementById('nMedia').value.trim();
+      const body = {
+        positionId: positionId, type: type,
+        image: type === 1 ? media : '',
+        video: type === 2 ? media : '',
+        link: document.getElementById('nLink').value.trim(),
+        text: document.getElementById('nText').value.trim(),
+        sort: Number(document.getElementById('nSort').value || 0),
+        status: Number(document.getElementById('nStatus').value)
+      };
+      const st = document.getElementById('nStart').value;
+      const en = document.getElementById('nEnd').value;
+      if (st) body.startTime = st.replace('T', ' ');
+      if (en) body.endTime = en.replace('T', ' ');
+      const url = API + '/ads' + (EDIT_ID ? '/' + EDIT_ID : '');
+      try {
+        if (EDIT_ID) await AdminUI.put(url, body); else await AdminUI.post(url, body);
+        AdminUI.closeModal('adModal');
+        AdminUI.showToast(EDIT_ID ? '广告已更新' : '广告已新增', 'success');
+        loadAds(EDIT_ID ? PAGE : 1);
+      } catch (e) { }
+    }
+
+    function removeAd(id) {
+      AdminUI.confirmAction('确定删除该广告？', function () {
+        AdminUI.del(API + '/ads/' + id).then(function () {
+          AdminUI.showToast('广告已删除', 'success');
+          loadAds(PAGE);
+        }).catch(function () { });
+      });
+    }
+
+    function openPosManager() {
+      loadPositions();
+      AdminUI.openModal('posModal');
+    }
+
+    function openPosEdit(id) {
+      POS_EDIT_ID = id || null;
+      document.getElementById('posEditTitle').textContent = id ? '编辑广告位' : '新增广告位';
+      const p = id ? (POSITIONS.filter(function (x) { return x.id === id; })[0] || {}) : {};
+      document.getElementById('pName').value = p.name || '';
+      document.getElementById('pSize').value = p.size || '';
+      document.getElementById('pStatus').value = String(p.status === undefined ? 1 : p.status);
+      AdminUI.openModal('posEditModal');
+    }
+
+    async function savePos() {
+      const name = document.getElementById('pName').value.trim();
+      if (!name) { AdminUI.showToast('请输入广告位名称', 'warning'); return; }
+      const body = {
+        name: name,
+        size: document.getElementById('pSize').value.trim(),
+        status: Number(document.getElementById('pStatus').value)
+      };
+      const url = API + '/ad-positions' + (POS_EDIT_ID ? '/' + POS_EDIT_ID : '');
+      try {
+        if (POS_EDIT_ID) await AdminUI.put(url, body); else await AdminUI.post(url, body);
+        AdminUI.closeModal('posEditModal');
+        AdminUI.showToast('广告位已保存', 'success');
+        loadPositions();
+      } catch (e) { }
+    }
+
+    function removePos(id) {
+      AdminUI.confirmAction('确定删除该广告位？', function () {
+        AdminUI.del(API + '/ad-positions/' + id).then(function () {
+          AdminUI.showToast('广告位已删除', 'success');
+          loadPositions();
+        }).catch(function () { });
+      });
+    }
+
+    (async function () {
+      const ok = await AdminUI.initPage({ key: 'ad', breadcrumb: ['内容管理', '广告管理'], need: ['content:list'] });
+      if (!ok) return;
+      if (AdminUI.can('content:add')) document.getElementById('btnAdd').style.display = '';
+      if (AdminUI.can('content:add')) document.getElementById('btnPos').style.display = '';
+      if (!AdminUI.can('content:add')) document.getElementById('btnPosAdd').style.display = 'none';
+      loadPositions();
+      AdminUI.enableImageUpload({
+        input: document.getElementById('nMedia'),
+        btn: document.getElementById('btnNMedia'),
+        onUpload: function () { renderMediaPreview(); }
+      });
+      document.getElementById('nMedia').addEventListener('input', renderMediaPreview);
+      document.getElementById('adPagination').addEventListener('click', function (e) {
+        const b = e.target.closest('button[data-page]');
+        if (!b || b.disabled) return;
+        loadAds(Number(b.getAttribute('data-page')));
+      });
+      const debouncedSearch = AdminUI.debounce(doSearch, 300);
+      document.getElementById('fKeyword').addEventListener('input', debouncedSearch);
+      document.getElementById('fPosition').addEventListener('change', doSearch);
+      document.getElementById('fStatus').addEventListener('change', doSearch);
+      document.getElementById('adPagination').addEventListener('change', function (e) {
+        if (e.target.classList.contains('page-size-select')) {
+          SIZE = parseInt(e.target.value, 10);
+          loadAds(1);
+        }
+      });
+      loadAds(1);
+    })();
+  </script>
+</body>
+</html>

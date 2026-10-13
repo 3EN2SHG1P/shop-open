@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>规格属性 - 商城后台管理系统</title>
+  <link rel="stylesheet" href="../../css/common.css?v=20260904e">
+  <style>
+    .vals-cell { display:flex; gap:6px; flex-wrap:wrap; }
+    .val-chip { display:inline-flex; align-items:center; gap:4px; }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main-wrapper">
+      <header class="header" id="header"></header>
+      <main class="content">
+        <div class="page-header">
+          <div><h1 class="page-title">规格属性管理</h1><p class="page-desc">管理商品规格和属性，用于SKU生成</p></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="tabs" style="margin-bottom:0;border-bottom:none;">
+              <div class="tab-item active" data-tab="spec" onclick="switchMode('spec')">规格管理</div>
+              <div class="tab-item" data-tab="attr" onclick="switchMode('attr')">属性管理</div>
+            </div>
+            <button class="btn btn-primary" id="btnAdd" onclick="openSaModal()">➕ 新增规格</button>
+          </div>
+          <div class="card-body">
+            <div class="tabs-container">
+              <div class="tab-content active" id="panel-spec">
+                <div class="table-wrapper">
+                  <table class="table">
+                    <thead><tr><th>规格名称</th><th>关联分类</th><th>规格值</th><th>排序</th><th class="col-actions">操作</th></tr></thead>
+                    <tbody id="specTbody"></tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="tab-content" id="panel-attr">
+                <div class="table-wrapper">
+                  <table class="table">
+                    <thead><tr><th>属性名称</th><th>关联分类</th><th>属性值</th><th>排序</th><th class="col-actions">操作</th></tr></thead>
+                    <tbody id="attrTbody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <div class="modal-overlay" id="saModal">
+    <div class="modal">
+      <div class="modal-header"><h3 class="modal-title" id="saModalTitle">新增规格</h3><button class="modal-close" data-close-modal="saModal">✕</button></div>
+      <div class="modal-body">
+        <div class="form-group"><label class="form-label" id="saNameLabel">规格名称 <span class="required">*</span></label><input type="text" id="fName" class="form-control" placeholder="如：颜色、尺寸"></div>
+        <div class="form-group"><label class="form-label">关联分类</label><select id="fCategory" class="form-control"></select></div>
+        <div class="form-group"><label class="form-label">规格值（多个用逗号或顿号分隔）</label><input type="text" id="fValues" class="form-control" placeholder="如：黑色,白色,蓝色"></div>
+        <div class="form-group"><label class="form-label">排序</label><input type="number" id="fSort" class="form-control" value="0"></div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-close-modal="saModal">取消</button><button class="btn btn-primary" onclick="saveSa()">确认保存</button></div>
+    </div>
+  </div>
+  <script src="../../js/common.js?v=20260904e"></script>
+  <script>
+    const API = AdminUI.API_BASE;
+    let MODE = 'spec';           // spec / attr
+    let EDIT_ID = null;
+    let CATS = [];
+    let FLAT = {};
+
+    function esc(s) {
+      return String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+
+    function buildFlat(nodes) {
+      (nodes || []).forEach(function (n) {
+        FLAT[n.id] = n;
+        buildFlat(n.children);
+      });
+    }
+
+    function catName(id) {
+      if (!id) return '全部分类';
+      const n = FLAT[id];
+      return n ? n.name : ('分类#' + id);
+    }
+
+    function switchMode(mode) {
+      if (MODE === mode) return;
+      MODE = mode;
+      document.querySelectorAll('#panel-spec,#panel-attr').forEach(function (p) { p.classList.remove('active'); });
+      document.getElementById('panel-' + mode).classList.add('active');
+      document.querySelectorAll('.tab-item').forEach(function (t) {
+        t.classList.toggle('active', t.getAttribute('data-tab') === mode);
+      });
+      const isSpec = mode === 'spec';
+      document.getElementById('btnAdd').textContent = isSpec ? '➕ 新增规格' : '➕ 新增属性';
+      document.getElementById('saNameLabel').innerHTML = (isSpec ? '规格名称' : '属性名称') + ' <span class="required">*</span>';
+      loadList(mode);
+    }
+
+    function catOptions() {
+      let html = '<option value="0">全部分类</option>';
+      function walk(nodes, depth) {
+        (nodes || []).forEach(function (n) {
+          html += '<option value="' + n.id + '">' + new Array(depth + 1).join('　') + esc(n.name) + '</option>';
+          walk(n.children, depth + 1);
+        });
+      }
+      walk(CATS, 0);
+      return html;
+    }
+
+    async function loadList(mode) {
+      const url = mode === 'spec' ? API + '/goods/specs' : API + '/goods/attrs';
+      const data = await AdminUI.get(url);
+      if (!data) return;
+      const tbody = document.getElementById(mode === 'spec' ? 'specTbody' : 'attrTbody');
+      const canEdit = AdminUI.can('goods:edit');
+      const canDel = AdminUI.can('goods:delete');
+      const chipCls = mode === 'spec' ? 'primary' : 'purple';
+      const rows = (data || []).map(function (x) {
+        const vals = (x.values || []).map(function (v) { return '<span class="badge-tag ' + chipCls + '">' + esc(v.value) + '</span>'; }).join('');
+        let acts = '';
+        if (canEdit) acts += '<a class="action-link" onclick="openSaModal(' + x.id + ')">编辑</a>';
+        if (canDel) acts += '<a class="action-link danger" onclick="delSa(' + x.id + ')">删除</a>';
+        return '<tr>' +
+          '<td style="font-weight:500;">' + esc(x.name) + '</td>' +
+          '<td>' + esc(catName(x.categoryId)) + '</td>' +
+          '<td><div class="vals-cell">' + (vals || '<span style="color:var(--text-muted);">-</span>') + '</div></td>' +
+          '<td>' + (x.sort === null || x.sort === undefined ? 0 : x.sort) + '</td>' +
+          '<td class="col-actions">' + acts + '</td>' +
+          '</tr>';
+      }).join('');
+      tbody.innerHTML = rows || '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:40px 0;">暂无数据</td></tr>';
+    }
+
+    function openSaModal(id) {
+      EDIT_ID = null;
+      const isSpec = MODE === 'spec';
+      document.getElementById('saModalTitle').textContent = id ? ((isSpec ? '编辑规格' : '编辑属性')) : (isSpec ? '新增规格' : '新增属性');
+      document.getElementById('fName').value = '';
+      document.getElementById('fCategory').value = '0';
+      document.getElementById('fValues').value = '';
+      document.getElementById('fSort').value = '0';
+      if (id) {
+        AdminUI.get(isSpec ? API + '/goods/specs' : API + '/goods/attrs').then(function (data) {
+          const x = (data || []).find(function (r) { return r.id === id; });
+          if (!x) return;
+          EDIT_ID = x.id;
+          document.getElementById('fName').value = x.name || '';
+          document.getElementById('fCategory').value = String(x.categoryId || 0);
+          document.getElementById('fValues').value = (x.values || []).map(function (v) { return v.value; }).join(',');
+          document.getElementById('fSort').value = x.sort === null || x.sort === undefined ? 0 : x.sort;
+        });
+      }
+      AdminUI.openModal('saModal');
+    }
+
+    async function saveSa() {
+      const name = document.getElementById('fName').value.trim();
+      if (!name) { AdminUI.showToast('请填写名称', 'warning'); return; }
+      const isSpec = MODE === 'spec';
+      const raw = document.getElementById('fValues').value.trim();
+      const values = raw ? raw.split(/[,，、]/).map(function (v) { return v.trim(); }).filter(Boolean).map(function (v) { return { value: v }; }) : [];
+      if (!values.length) { AdminUI.showToast('请至少填写一个规格值', 'warning'); return; }
+      const payload = {
+        name: name,
+        category_id: Number(document.getElementById('fCategory').value) || 0,
+        sort: Number(document.getElementById('fSort').value) || 0,
+        values: values
+      };
+      const base = isSpec ? API + '/goods/specs' : API + '/goods/attrs';
+      try {
+        if (EDIT_ID) {
+          await AdminUI.put(base + '/' + EDIT_ID, payload);
+        } else {
+          await AdminUI.post(base, payload);
+        }
+        AdminUI.showToast('保存成功', 'success');
+        AdminUI.closeModal('saModal');
+        loadList(MODE);
+      } catch (e) { }
+    }
+
+    async function delSa(id) {
+      if (!window.confirm('确认删除该' + (MODE === 'spec' ? '规格' : '属性') + '？')) return;
+      const base = MODE === 'spec' ? API + '/goods/specs' : API + '/goods/attrs';
+      try {
+        await AdminUI.del(base + '/' + id);
+        AdminUI.showToast('删除成功', 'success');
+        loadList(MODE);
+      } catch (e) { }
+    }
+
+    (async function () {
+      const ok = await AdminUI.initPage({ key: 'goods-spec-attr', breadcrumb: ['商品管理', '规格属性'], need: ['goods:list'] });
+      if (!ok) return;
+      if (!AdminUI.can('goods:add')) document.getElementById('btnAdd').style.display = 'none';
+      const cats = await AdminUI.get(API + '/categories');
+      CATS = cats || [];
+      buildFlat(CATS);
+      document.getElementById('fCategory').innerHTML = catOptions();
+      await loadList('spec');
+      await loadList('attr');
+    })();
+  </script>
+</body>
+</html>

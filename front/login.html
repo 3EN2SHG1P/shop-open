@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <link rel="icon" type="image/png" href="images/logo.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录 - 随心商城</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .auth-page { min-height: calc(100vh - 70px); display: flex; align-items: center; justify-content: center; padding: 40px 0; background-color: var(--bg); }
+    .auth-container { width: 800px; background-color: var(--bg-white); border-radius: 8px; overflow: hidden; box-shadow: 0 4px 24px var(--shadow); display: flex; }
+    .auth-banner { width: 340px; background: linear-gradient(135deg, var(--primary), var(--primary-hover)); display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; padding: 40px; }
+    .auth-banner h2 { font-size: 24px; margin-bottom: 12px; }
+    .auth-banner p { font-size: 13px; opacity: 0.9; text-align: center; line-height: 1.8; }
+    .auth-banner .banner-logo { width: 60px; height: 60px; background-color: #FFFFFF; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; overflow: hidden; }
+    .auth-banner .banner-logo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .auth-form-wrap { flex: 1; padding: 40px; }
+    .auth-form-wrap h3 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .auth-form-wrap .form-subtitle { font-size: 12px; color: var(--text-tertiary); margin-bottom: 24px; }
+    .form-group { margin-bottom: 16px; }
+    .form-group .form-input { position: relative; }
+    .password-toggle { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 14px; color: var(--text-tertiary); }
+    .form-options { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .form-options a { font-size: 12px; color: var(--text-secondary); }
+    .form-options a:hover { color: var(--primary); }
+    .auth-submit { width: 100%; height: 40px; background-color: var(--primary); color: #fff; font-size: 14px; font-weight: 500; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
+    .auth-submit:hover { background-color: var(--primary-hover); box-shadow: 0 4px 12px rgba(30,158,150,0.3); }
+    .auth-submit.disabled { background-color: var(--primary-disabled); cursor: not-allowed; box-shadow: none; }
+    .auth-footer-link { text-align: center; margin-top: 16px; font-size: 12px; color: var(--text-secondary); }
+    .auth-footer-link a { color: var(--primary); }
+    .page-footer { text-align: center; padding: 20px 0; font-size: 11px; color: var(--text-tertiary); }
+    .page-footer a { color: var(--text-tertiary); margin: 0 8px; }
+  </style>
+</head>
+<body>
+
+<!-- 简化版导航栏 -->
+<header class="simple-header">
+  <div class="container">
+    <a href="index.html" class="logo"><img src="images/logo.png" alt="随心商城"></a>
+    <span class="page-title">登录</span>
+    <span class="page-tip">欢迎回来</span>
+    <div class="header-right">
+      <a href="index.html">返回首页</a>
+    </div>
+  </div>
+</header>
+
+<div class="auth-page">
+  <div class="auth-container">
+    <div class="auth-banner">
+      <div class="banner-logo">SX</div>
+      <h2>随心商城</h2>
+      <p>好物随心挑选<br>品质看得见</p>
+    </div>
+    <div class="auth-form-wrap">
+      <h3>账号登录</h3>
+      <p class="form-subtitle">使用随心商城账号登录，享受更多服务</p>
+      <form id="loginForm">
+        <div class="form-group">
+          <label class="form-label">手机号</label>
+          <input type="tel" id="phoneInput" class="form-input phone-input" placeholder="请输入手机号" maxlength="11" required>
+        </div>
+        <div class="form-group" style="position:relative;">
+          <label class="form-label">密码</label>
+          <input type="password" id="passwordInput" class="form-input" placeholder="请输入密码" required>
+          <span class="password-toggle">👁</span>
+        </div>
+        <div class="form-options">
+          <label class="checkbox">
+            <input type="checkbox" checked>
+            <span class="checkbox-box"></span>
+            <span class="checkbox-text">记住我</span>
+          </label>
+          <a href="javascript:;" id="forgotTip">忘记密码？</a>
+        </div>
+        <button type="submit" class="auth-submit">登 录</button>
+      </form>
+      <div class="auth-footer-link">
+        还没有账号？<a href="register.html">立即注册</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="page-footer">
+  <a href="service.html">服务中心</a>|<a href="orders.html">我的订单</a>|<a href="index.html">商城首页</a>
+  <br>© 2026 shop-open · 开源演示项目，非真实商户
+</div>
+
+<script src="js/ui.js"></script>
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/main.js"></script>
+<script>
+/* 登录页：手机号+密码 → /auth/login → 合并游客车 → redirect 回跳（spec §8.13） */
+(function () {
+  var form = document.getElementById('loginForm');
+  if (!form) return;
+  var phone = document.getElementById('phoneInput');
+  var pwd = document.getElementById('passwordInput');
+  var btn = form.querySelector('.auth-submit');
+
+  function redirectParam() {
+    var target = new URLSearchParams(location.search).get('redirect');
+    return target ? '?redirect=' + encodeURIComponent(target) : '';
+  }
+
+  var regLink = document.querySelector('a[href="register.html"]');
+  if (regLink) regLink.href = 'register.html' + redirectParam();
+
+  var forgot = document.getElementById('forgotTip');
+  if (forgot) {
+    forgot.addEventListener('click', function () {
+      window.ShopUI.toast('请联系客服或由后台管理员重置密码', 'error', 3000);
+    });
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var phoneVal = (phone.value || '').trim();
+    var pwdVal = pwd.value || '';
+    if (!/^1\d{10}$/.test(phoneVal)) {
+      window.ShopUI.toast('请输入正确的手机号', 'error');
+      return;
+    }
+    if (!pwdVal) {
+      window.ShopUI.toast('请输入密码', 'error');
+      return;
+    }
+    window.ShopUI.busy(btn, function () {
+      return window.ShopApi.login(phoneVal, pwdVal).then(function (data) {
+        window.ShopAuth.setSession(data.token, data.member);
+        return window.ShopAuth.mergeGuestCart();
+      }).then(function () {
+        window.ShopUI.toast('登录成功', 'success');
+        window.ShopAuth.gotoAfterLogin();
+      });
+    }).catch(function () { /* 错误已由请求层 toast */ });
+  });
+})();
+</script>
+<script src="js/live.js"></script>
+</body>
+</html>

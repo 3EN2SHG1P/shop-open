@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>优惠券 - 商城后台管理系统</title>
+  <link rel="stylesheet" href="../../css/common.css?v=20260904e">
+  <style>
+    #couponModal .modal { width: 640px; }
+    #recordModal .modal { width: 720px; }
+    #couponModal .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+    #couponModal .form-group-full { grid-column: span 2; }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main-wrapper">
+      <header class="header" id="header"></header>
+      <main class="content">
+        <div class="page-header">
+          <div><h1 class="page-title">优惠券</h1><p class="page-desc">创建满减/折扣券并追踪领取与核销情况</p></div>
+          <div class="btn-group">
+            <button class="btn btn-primary" id="btnAdd" onclick="openCreate()" style="display:none;">➕ 新增优惠券</button>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-body" style="padding:12px 20px;">
+            <div class="filter-bar">
+              <input type="text" class="form-control filter-input" id="fKeyword" placeholder="券名称">
+              <select class="form-control filter-input" id="fType" style="width:120px;">
+                <option value="">券类型</option><option value="1">满减券</option><option value="2">折扣券</option>
+              </select>
+              <select class="form-control filter-input" id="fScope" style="width:120px;">
+                <option value="">适用范围</option><option value="1">全部商品</option><option value="2">指定分类</option><option value="3">指定商品</option>
+              </select>
+              <select class="form-control filter-input" id="fStatus" style="width:110px;">
+                <option value="">状态</option><option value="1">启用</option><option value="0">停用</option>
+              </select>
+              <input type="date" class="form-control filter-input" id="fStart">
+              <input type="date" class="form-control filter-input" id="fEnd">
+              <div class="filter-actions">
+                <button class="btn btn-primary" onclick="resetSearch()">重置</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body no-padding">
+            <div class="table-wrapper">
+              <table class="table">
+                <thead><tr><th>券名称</th><th>券类型</th><th>优惠内容</th><th>适用范围</th><th>领取/使用</th><th>有效期</th><th>状态</th><th class="col-actions">操作</th></tr></thead>
+                <tbody id="couponBody"></tbody>
+              </table>
+            </div>
+            <div id="couponPagination" class="pagination"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="couponModal">
+    <div class="modal">
+      <div class="modal-header"><h3 class="modal-title" id="couponModalTitle">新增优惠券</h3><button class="modal-close" data-close-modal="couponModal">✕</button></div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group form-group-full"><label class="form-label">券名称 <span class="required">*</span></label><input type="text" id="cName" class="form-control" maxlength="100" placeholder="如：满1000减100券"></div>
+          <div class="form-group"><label class="form-label">券类型 <span class="required">*</span></label><select id="cType" class="form-control" onchange="syncType()"><option value="1">满减券</option><option value="2">折扣券</option></select></div>
+          <div class="form-group"><label class="form-label">面额 / 折扣</label><input type="number" id="cAmount" class="form-control" min="0" step="0.01" placeholder="满减填金额 / 折扣填折数"></div>
+          <div class="form-group"><label class="form-label">使用门槛(满 X 元可用)</label><input type="number" id="cMin" class="form-control" min="0" step="0.01" placeholder="0 表示无门槛"></div>
+          <div class="form-group"><label class="form-label">发放总量</label><input type="number" id="cTotal" class="form-control" min="0" placeholder="0 表示不限量"></div>
+          <div class="form-group"><label class="form-label">每人限领</label><input type="number" id="cPerLimit" class="form-control" min="1" value="1"></div>
+          <div class="form-group"><label class="form-label">适用范围</label><select id="cScope" class="form-control" onchange="syncScope()"><option value="1">全部商品</option><option value="2">指定分类</option><option value="3">指定商品</option></select></div>
+          <div class="form-group" id="scopeGroup"><label class="form-label">分类/商品 ID</label><input type="text" id="cScopeIds" class="form-control" placeholder="多个用英文逗号分隔"></div>
+          <div class="form-group"><label class="form-label">开始时间 <span class="required">*</span></label><input type="datetime-local" id="cStart" class="form-control"></div>
+          <div class="form-group"><label class="form-label">结束时间 <span class="required">*</span></label><input type="datetime-local" id="cEnd" class="form-control"></div>
+          <div class="form-group"><label class="form-label">状态</label><select id="cStatus" class="form-control"><option value="1">启用</option><option value="0">停用</option></select></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-close-modal="couponModal">取消</button><button class="btn btn-primary" onclick="saveCoupon()">保存</button></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="recordModal">
+    <div class="modal">
+      <div class="modal-header"><h3 class="modal-title">领取记录</h3><button class="modal-close" data-close-modal="recordModal">✕</button></div>
+      <div class="modal-body">
+        <div class="card-body" style="padding:12px 0 8px;">
+          <div class="filter-bar">
+            <input type="text" class="form-control filter-input" id="rKeyword" placeholder="会员昵称/手机号">
+            <select class="form-control filter-input" id="rStatus" style="width:110px;"><option value="">使用状态</option><option value="1">未使用</option><option value="2">已使用</option></select>
+            <div class="filter-actions"><button class="btn btn-primary btn-sm" onclick="loadRecords(1)">🔍 搜索</button></div>
+          </div>
+        </div>
+        <div class="table-wrapper">
+          <table class="table">
+            <thead><tr><th>会员</th><th>手机号</th><th>状态</th><th>关联订单</th><th>领取时间</th><th>使用时间</th></tr></thead>
+            <tbody id="recordBody"></tbody>
+          </table>
+        </div>
+        <div id="recordPagination" class="pagination"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../js/common.js?v=20260904e"></script>
+  <script>
+    const API = AdminUI.API_BASE;
+    let EDIT_ID = null;
+    let RECORD_CID = null;
+    let SIZE = 10;
+    let PAGE = 1;
+    const F = { keyword: '', type: '', scope: '', status: '', start_date: '', end_date: '' };
+
+    function esc(v) { return AdminUI.escHtml(v === null || v === undefined ? '' : String(v)); }
+    function money(v) { return (Number(v || 0)).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    function statusBadge(s) { return s === 1 ? '<span class="badge-tag success">启用</span>' : '<span class="badge-tag default">停用</span>'; }
+
+    function typeText(r) {
+      if (r.type === 1) return '<span class="badge-tag primary">满减</span>';
+      return '<span class="badge-tag warning">折扣</span>';
+    }
+
+    function benefitText(r) {
+      let val = '';
+      if (r.type === 1) val = '立减 ¥' + money(r.amount);
+      else val = Number(r.rate || 0) + ' 折';
+      const min = r.minAmount > 0 ? ('满 ¥' + money(r.minAmount) + ' 可用') : '无门槛';
+      return '<div style="font-weight:600;">' + val + '</div><div style="font-size:11px;color:var(--text-muted);">' + min + '</div>';
+    }
+
+    function scopeText(r) {
+      let s = esc(r.scopeText) || '';
+      if ((r.scope === 2 || r.scope === 3) && r.scopeIds) s += '<div style="font-size:11px;color:var(--text-muted);">ID: ' + esc(r.scopeIds) + '</div>';
+      return s;
+    }
+
+    function doSearch() {
+      F.keyword = document.getElementById('fKeyword').value.trim();
+      F.type = document.getElementById('fType').value;
+      F.scope = document.getElementById('fScope').value;
+      F.status = document.getElementById('fStatus').value;
+      F.start_date = document.getElementById('fStart').value;
+      F.end_date = document.getElementById('fEnd').value;
+      loadCoupons(1);
+    }
+
+    function resetSearch() {
+      ['fKeyword', 'fStart', 'fEnd'].forEach(function (id) { document.getElementById(id).value = ''; });
+      ['fType', 'fScope', 'fStatus'].forEach(function (id) { document.getElementById(id).value = ''; });
+      F.keyword = ''; F.type = ''; F.scope = ''; F.status = ''; F.start_date = ''; F.end_date = '';
+      loadCoupons(1);
+    }
+
+    function loadCoupons(page) {
+      PAGE = page || 1;
+      const params = { page: PAGE, page_size: SIZE };
+      if (F.keyword) params.keyword = F.keyword;
+      if (F.type !== '') params.type = F.type;
+      if (F.scope !== '') params.scope = F.scope;
+      if (F.status !== '') params.status = F.status;
+      if (F.start_date) params.start_date = F.start_date;
+      if (F.end_date) params.end_date = F.end_date;
+      AdminUI.get(API + '/coupons', params).then(function (data) {
+        if (!data) return;
+        const rows = (data.list || []).map(function (c) {
+          return '<tr>' +
+            '<td style="font-weight:600;">' + esc(c.name) + '</td>' +
+            '<td>' + typeText(c) + '</td>' +
+            '<td>' + benefitText(c) + '</td>' +
+            '<td style="font-size:12px;">' + scopeText(c) + '</td>' +
+            '<td style="font-size:12px;"><span class="badge-tag info">领 ' + (c.receivedCount || 0) + '</span> <span class="badge-tag primary">用 ' + (c.usedCount || 0) + '</span></td>' +
+            '<td style="font-size:12px;">' + esc((c.startTime || '').slice(0, 16)) + '<br><span style="color:var(--text-muted);">至 ' + esc((c.endTime || '').slice(0, 16)) + '</span></td>' +
+            '<td>' + statusBadge(c.status) + '</td>' +
+            '<td class="col-actions">' +
+            (AdminUI.can('marketing:list') ? '<a class="action-link" onclick="openRecords(' + c.id + ')">记录</a>' : '') +
+            (AdminUI.can('marketing:edit') ? '<a class="action-link" onclick="openEdit(' + c.id + ')">编辑</a>' : '') +
+            (AdminUI.can('marketing:delete') ? '<a class="action-link danger" onclick="removeCoupon(' + c.id + ')">删除</a>' : '') +
+            '</td></tr>';
+        }).join('');
+        document.getElementById('couponBody').innerHTML = rows || '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:40px 0;">暂无优惠券</td></tr>';
+        AdminUI.renderPagination('couponPagination', PAGE, Math.max(1, Math.ceil(data.total / SIZE)), data.total, SIZE);
+      });
+    }
+
+    function syncType() {
+      const el = document.getElementById('cAmount');
+      el.placeholder = document.getElementById('cType').value === '1' ? '满减金额' : '折扣(如 8.5 表示 85 折)';
+    }
+
+    function syncScope() {
+      document.getElementById('scopeGroup').style.display = document.getElementById('cScope').value === '1' ? 'none' : '';
+    }
+
+    function openCreate() {
+      EDIT_ID = null;
+      document.getElementById('couponModalTitle').textContent = '新增优惠券';
+      document.getElementById('cName').value = '';
+      document.getElementById('cType').value = '1';
+      document.getElementById('cAmount').value = '';
+      document.getElementById('cMin').value = '';
+      document.getElementById('cTotal').value = '0';
+      document.getElementById('cPerLimit').value = '1';
+      document.getElementById('cScope').value = '1';
+      document.getElementById('cScopeIds').value = '';
+      document.getElementById('cStatus').value = '1';
+      document.getElementById('cStart').value = '';
+      document.getElementById('cEnd').value = '';
+      syncType(); syncScope();
+      AdminUI.openModal('couponModal');
+    }
+
+    function openEdit(id) {
+      AdminUI.findRow(API + '/coupons', id).then(function (c) {
+        if (!c) return;
+        EDIT_ID = id;
+        document.getElementById('couponModalTitle').textContent = '编辑优惠券';
+        document.getElementById('cName').value = c.name;
+        document.getElementById('cType').value = String(c.type);
+        document.getElementById('cAmount').value = c.type === 1 ? c.amount : c.rate;
+        document.getElementById('cMin').value = c.minAmount || 0;
+        document.getElementById('cTotal').value = c.totalCount;
+        document.getElementById('cPerLimit').value = c.perLimit;
+        document.getElementById('cScope').value = String(c.scope);
+        document.getElementById('cScopeIds').value = c.scopeIds || '';
+        document.getElementById('cStatus').value = String(c.status);
+        document.getElementById('cStart').value = (c.startTime || '').slice(0, 16);
+        document.getElementById('cEnd').value = (c.endTime || '').slice(0, 16);
+        syncType(); syncScope();
+        AdminUI.openModal('couponModal');
+      });
+    }
+
+    async function saveCoupon() {
+      const name = document.getElementById('cName').value.trim();
+      const type = Number(document.getElementById('cType').value);
+      const rawAmount = Number(document.getElementById('cAmount').value || 0);
+      const scope = Number(document.getElementById('cScope').value);
+      const start = document.getElementById('cStart').value;
+      const end = document.getElementById('cEnd').value;
+      if (!name) { AdminUI.showToast('请输入券名称', 'warning'); return; }
+      if (!start || !end) { AdminUI.showToast('请选择有效起止时间', 'warning'); return; }
+      if (type === 1 && rawAmount <= 0) { AdminUI.showToast('满减金额必须大于 0', 'warning'); return; }
+      if (type === 2 && (rawAmount <= 0 || rawAmount >= 10)) { AdminUI.showToast('折扣需大于 0 且小于 10', 'warning'); return; }
+      if (scope !== 1 && !document.getElementById('cScopeIds').value.trim()) { AdminUI.showToast('请填写分类/商品 ID', 'warning'); return; }
+      const body = {
+        name: name, type: type,
+        amount: type === 1 ? rawAmount : 0,
+        rate: type === 2 ? rawAmount : null,
+        minAmount: Number(document.getElementById('cMin').value || 0),
+        scope: scope,
+        scopeIds: document.getElementById('cScopeIds').value.trim(),
+        totalCount: Number(document.getElementById('cTotal').value || 0),
+        perLimit: Number(document.getElementById('cPerLimit').value || 1),
+        startTime: start.replace('T', ' '),
+        endTime: end.replace('T', ' '),
+        status: Number(document.getElementById('cStatus').value)
+      };
+      const url = API + '/coupons' + (EDIT_ID ? '/' + EDIT_ID : '');
+      try {
+        if (EDIT_ID) await AdminUI.put(url, body); else await AdminUI.post(url, body);
+        AdminUI.closeModal('couponModal');
+        AdminUI.showToast(EDIT_ID ? '优惠券已更新' : '优惠券已新增', 'success');
+        loadCoupons(EDIT_ID ? PAGE : 1);
+      } catch (e) { }
+    }
+
+    function removeCoupon(id) {
+      AdminUI.confirmAction('确定删除该优惠券？', function () {
+        AdminUI.del(API + '/coupons/' + id).then(function () {
+          AdminUI.showToast('优惠券已删除', 'success');
+          loadCoupons(PAGE);
+        }).catch(function () { });
+      });
+    }
+
+    function openRecords(id) {
+      RECORD_CID = id;
+      document.getElementById('rKeyword').value = '';
+      document.getElementById('rStatus').value = '';
+      AdminUI.openModal('recordModal');
+      loadRecords(1);
+    }
+
+    function loadRecords(page) {
+      const params = { page: page || 1, page_size: 10 };
+      const kw = document.getElementById('rKeyword').value.trim();
+      const st = document.getElementById('rStatus').value;
+      if (kw) params.keyword = kw;
+      if (st !== '') params.status = st;
+      AdminUI.get(API + '/coupons/' + RECORD_CID + '/records', params).then(function (data) {
+        if (!data) return;
+        const rows = (data.list || []).map(function (r) {
+          return '<tr>' +
+            '<td>' + esc(r.memberName) + '</td>' +
+            '<td>' + esc(r.memberPhone || '—') + '</td>' +
+            '<td>' + (r.status === 2 ? '<span class="badge-tag success">已使用</span>' : '<span class="badge-tag info">未使用</span>') + '</td>' +
+            '<td>' + esc(r.orderNo || '—') + '</td>' +
+            '<td style="font-size:12px;">' + esc(r.receivedAt || '—') + '</td>' +
+            '<td style="font-size:12px;">' + esc(r.usedAt || '—') + '</td></tr>';
+        }).join('');
+        document.getElementById('recordBody').innerHTML = rows || '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:32px 0;">暂无领取记录</td></tr>';
+        AdminUI.renderPagination('recordPagination', page || 1, Math.max(1, Math.ceil(data.total / 10)), data.total, 10);
+      });
+    }
+
+    (async function () {
+      const ok = await AdminUI.initPage({ key: 'coupon', breadcrumb: ['营销管理', '优惠券'], need: ['marketing:list'] });
+      if (!ok) return;
+      if (AdminUI.can('marketing:add')) document.getElementById('btnAdd').style.display = '';
+      document.getElementById('recordPagination').addEventListener('click', function (e) {
+        const b = e.target.closest('button[data-page]');
+        if (!b || b.disabled) return;
+        loadRecords(Number(b.getAttribute('data-page')));
+      });
+      document.getElementById('couponPagination').addEventListener('click', function (e) {
+        const b = e.target.closest('button[data-page]');
+        if (!b || b.disabled) return;
+        loadCoupons(Number(b.getAttribute('data-page')));
+      });
+      const debouncedSearch = AdminUI.debounce(doSearch, 300);
+      document.getElementById('fKeyword').addEventListener('input', debouncedSearch);
+      ['fType', 'fScope', 'fStatus', 'fStart', 'fEnd'].forEach(function (id) {
+        document.getElementById(id).addEventListener('change', doSearch);
+      });
+      document.getElementById('couponPagination').addEventListener('change', function (e) {
+        if (e.target.classList.contains('page-size-select')) {
+          SIZE = parseInt(e.target.value, 10);
+          loadCoupons(1);
+        }
+      });
+      loadCoupons(1);
+    })();
+  </script>
+</body>
+</html>

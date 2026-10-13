@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>商品分类 - 商城后台管理系统</title>
+  <link rel="stylesheet" href="../../css/common.css?v=20260905b">
+  <style>
+    .tree-node-content { cursor:pointer; border-radius:6px; }
+    .tree-node-content:hover { background:#fff7ed; }
+    .tree-node-content.selected { background:#fff3e0; }
+    .tree-node-content.selected .tree-label { color:var(--primary); font-weight:600; }
+    .cat-detail-tip { padding:48px 20px; text-align:center; color:var(--text-muted); font-size:14px; }
+    .tree-actions .btn { padding:1px 8px; font-size:12px; }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main-wrapper">
+      <header class="header" id="header"></header>
+      <main class="content">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">商品分类</h1>
+            <p class="page-desc">管理商品无限级分类树，支持新增、编辑、删除</p>
+          </div>
+          <button class="btn btn-primary" id="btnAddTop" onclick="openAddModal(0)">➕ 新增分类</button>
+        </div>
+        <div class="two-col">
+          <div class="card">
+            <div class="card-header"><h3 class="card-title"><span class="title-dot"></span>分类树</h3></div>
+            <div class="card-body">
+              <div class="tree" id="categoryTree"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><h3 class="card-title"><span class="title-dot"></span>分类详情</h3></div>
+            <div class="card-body" id="detailBox">
+              <div class="cat-detail-tip">点击左侧分类树中的节点查看并编辑分类详情</div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="categoryModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title" id="categoryModalTitle">新增分类</h3>
+        <button class="modal-close" data-close-modal="categoryModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">分类名称 <span class="required">*</span></label>
+          <input type="text" id="mName" class="form-control" placeholder="请输入分类名称">
+        </div>
+        <div class="form-group">
+          <label class="form-label">上级分类</label>
+          <select id="mParent" class="form-control"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">分类图标 <span style="font-weight:400;color:var(--text-muted);">emoji / 图片外链 / 本地上传 三选一</span></label>
+          <div class="img-field">
+            <div class="img-thumb" id="mIconPreview">📁</div>
+            <input type="text" id="mIcon" class="form-control" placeholder="粘贴 emoji 或 http(s) 图片外链，或点击「上传」选择本地图片" oninput="renderPreview('mIcon','mIconPreview')">
+            <button type="button" class="btn btn-sm btn-secondary upload-trigger" id="btnMIcon">上传</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">排序</label>
+          <input type="number" id="mSort" class="form-control" value="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">是否显示</label>
+          <label class="switch"><input type="checkbox" id="mShow" checked><span class="switch-slider"></span></label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-close-modal="categoryModal">取消</button>
+        <button class="btn btn-primary" onclick="saveNewCategory()">确认新增</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../js/common.js?v=20260905b"></script>
+  <script>
+    const API = AdminUI.API_BASE;
+    let CATS = [];
+    let FLAT = {};            // id -> node
+    let CURRENT_ID = null;    // 当前选中的分类
+    let EXPANDED_IDS = new Set(); // 已展开节点ID
+
+    function esc(s) {
+      return String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+
+    function iconHtml(icon) {
+      if (AdminUI.isImgSrc(icon)) return '<img src="' + esc(icon) + '" alt="icon" style="width:18px;height:18px;object-fit:contain;vertical-align:-3px;">';
+      return esc(icon) || '📁';
+    }
+
+    function iconUrlBox(icon) {
+      if (AdminUI.isImgSrc(icon)) return '<img src="' + esc(icon) + '" alt="icon">';
+      return esc(icon) || '📁';
+    }
+
+    function buildFlat(nodes) {
+      (nodes || []).forEach(function (n) {
+        FLAT[n.id] = n;
+        buildFlat(n.children);
+      });
+    }
+
+    function isDescendantOf(rootId, nodeId) {
+      let cur = FLAT[nodeId];
+      while (cur && cur.parent_id) {
+        if (cur.parent_id === rootId) return true;
+        cur = FLAT[cur.parent_id];
+      }
+      return false;
+    }
+
+    /* ========== 树渲染 ========== */
+    function treeHtml(nodes, selId) {
+      return (nodes || []).map(function (n) {
+        const kids = (n.children && n.children.length) ? n.children : [];
+        const hasChildren = kids.length > 0;
+        const isExpanded = EXPANDED_IDS.has(n.id);
+        return '<div class="tree-node">' +
+          '<div class="tree-node-content' + (n.id === selId ? ' selected' : '') + '" data-id="' + n.id + '">' +
+          '<span class="tree-toggle ' + (hasChildren ? (isExpanded ? 'expanded' : '') : 'leaf') + '">▶</span>' +
+          '<span class="tree-icon">' + iconHtml(n.icon) + '</span>' +
+          '<span class="tree-label">' + esc(n.name) + '</span>' +
+          '<span style="font-size:11px;color:var(--text-muted);">ID:' + n.id + '</span>' +
+          '<span class="tree-actions">' +
+          (AdminUI.can('goods:add') ? '<button class="btn btn-sm btn-secondary" onclick="openAddModal(' + n.id + ')">+子</button>' : '') +
+          (AdminUI.can('goods:delete') ? '<button class="btn btn-sm btn-danger" onclick="delCategory(' + n.id + ')">删</button>' : '') +
+          '</span></div>' +
+          (hasChildren ? '<div class="tree-children ' + (isExpanded ? 'open' : '') + '">' + treeHtml(kids, selId) + '</div>' : '') +
+          '</div>';
+      }).join('');
+    }
+
+    function renderTree() {
+      const el = document.getElementById('categoryTree');
+      el.innerHTML = treeHtml(CATS, CURRENT_ID) || '<div style="padding:20px;text-align:center;color:var(--text-muted);">暂无分类，点击右上角「新增分类」创建</div>';
+    }
+
+    function bindTreeEvents() {
+      const el = document.getElementById('categoryTree');
+      el.onclick = function (e) {
+        const tg = e.target.closest('.tree-toggle');
+        if (tg) {
+          e.stopPropagation();
+          const row = tg.closest('.tree-node-content');
+          const id = Number(row.getAttribute('data-id'));
+          if (EXPANDED_IDS.has(id)) EXPANDED_IDS.delete(id);
+          else EXPANDED_IDS.add(id);
+          renderTree();
+          return;
+        }
+        if (e.target.closest('button')) return;
+        const row = e.target.closest('.tree-node-content');
+        if (row) selectCategory(Number(row.getAttribute('data-id')));
+      };
+    }
+
+    /* ========== 父级下拉选项 ========== */
+    function parentOptions(exceptId) {
+      let html = '<option value="0">顶级分类</option>';
+      function walk(nodes, depth) {
+        (nodes || []).forEach(function (n) {
+          if (exceptId && (n.id === exceptId || isDescendantOf(n.id, exceptId))) {
+            walk(n.children, depth + 1);
+            return;
+          }
+          html += '<option value="' + n.id + '">' + new Array(depth + 1).join('　') + esc(n.name) + '</option>';
+          walk(n.children, depth + 1);
+        });
+      }
+      walk(CATS, 0);
+      return html;
+    }
+
+    function renderPreview(inputId, boxId) {
+      const url = document.getElementById(inputId).value.trim();
+      const box = document.getElementById(boxId);
+      box.innerHTML = AdminUI.isImgSrc(url) ? '<img src="' + esc(url) + '" alt="icon">' : (esc(url) || '📁');
+    }
+
+    /* ========== 详情面板 ========== */
+    function detailHtml(n) {
+      const canEdit = AdminUI.can('goods:edit');
+      const canAdd = AdminUI.can('goods:add');
+      const canDel = AdminUI.can('goods:delete');
+      return '<div class="form-group"><label class="form-label">分类名称</label><input type="text" id="dName" class="form-control" value="' + esc(n.name) + '"></div>' +
+        '<div class="form-group"><label class="form-label">上级分类</label><select id="dParent" class="form-control">' + parentOptions(n.id) + '</select></div>' +
+        '<div class="form-group"><label class="form-label">分类图标</label>' +
+        '<div class="img-field"><div class="img-thumb" id="dIconPreview">' + iconUrlBox(n.icon) + '</div>' +
+        '<input type="text" id="dIcon" class="form-control" value="' + esc(n.icon || '') + '" placeholder="粘贴 emoji 或 http(s) 图片外链，或点击「上传」选择本地图片" oninput="renderPreview(\'dIcon\',\'dIconPreview\')">' +
+        '<button type="button" class="btn btn-sm btn-secondary upload-trigger" id="btnDIcon">上传</button></div></div>' +
+        '<div class="form-group"><label class="form-label">排序</label><input type="number" id="dSort" class="form-control" value="' + (n.sort === null || n.sort === undefined ? 0 : n.sort) + '"></div>' +
+        '<div class="form-group"><label class="form-label">是否显示</label><label class="switch"><input type="checkbox" id="dShow"' + (n.isShow === 0 ? '' : ' checked') + '><span class="switch-slider"></span></label></div>' +
+        '<div class="form-group"><label class="form-label">SEO标题</label><input type="text" id="dSeoTitle" class="form-control" value="' + esc(n.seoTitle || '') + '" placeholder="搜索引擎标题"></div>' +
+        '<div class="form-group"><label class="form-label">SEO关键词</label><input type="text" id="dSeoKeywords" class="form-control" value="' + esc(n.seoKeywords || '') + '" placeholder="关键词，逗号分隔"></div>' +
+        '<div class="form-group"><label class="form-label">SEO描述</label><textarea id="dSeoDesc" class="form-control" placeholder="搜索引擎描述">' + esc(n.seoDesc || '') + '</textarea></div>' +
+        '<div class="btn-group" style="margin-top:16px;">' +
+        (canEdit ? '<button class="btn btn-primary" onclick="saveDetail()">保存修改</button>' : '') +
+        (canAdd ? '<button class="btn btn-secondary" onclick="openAddModal(' + n.id + ')">新增子分类</button>' : '') +
+        (canDel ? '<button class="btn btn-danger" onclick="delCategory(' + n.id + ')">删除分类</button>' : '') +
+        '</div>';
+    }
+
+    function clearDetail() {
+      CURRENT_ID = null;
+      renderTree();
+      document.getElementById('detailBox').innerHTML = '<div class="cat-detail-tip">点击左侧分类树中的节点查看并编辑分类详情</div>';
+    }
+
+    function selectCategory(id) {
+      const n = FLAT[id];
+      if (!n) return;
+      CURRENT_ID = id;
+      renderTree();
+      const box = document.getElementById('detailBox');
+      box.innerHTML = detailHtml(n);
+      const dp = document.getElementById('dParent');
+      if (dp) dp.value = String(n.parent_id || 0);
+      bindDetailIconUpload();
+    }
+
+    function bindDetailIconUpload() {
+      const input = document.getElementById('dIcon');
+      const btn = document.getElementById('btnDIcon');
+      if (!input || !btn) return;
+      AdminUI.enableImageUpload({
+        input: input,
+        btn: btn,
+        onUpload: function () { renderPreview('dIcon', 'dIconPreview'); }
+      });
+    }
+
+    /* ========== 新增 ========== */
+    function openAddModal(parentId) {
+      document.getElementById('categoryModalTitle').textContent = parentId && FLAT[parentId] ? ('新增子分类 - ' + FLAT[parentId].name) : '新增分类';
+      document.getElementById('mName').value = '';
+      const sel = document.getElementById('mParent');
+      sel.innerHTML = parentOptions();
+      sel.value = String(parentId || 0);
+      document.getElementById('mIcon').value = '';
+      document.getElementById('mSort').value = '0';
+      document.getElementById('mShow').checked = true;
+      document.getElementById('mIconPreview').innerHTML = '📁';
+      AdminUI.openModal('categoryModal');
+    }
+
+    async function saveNewCategory() {
+      const name = document.getElementById('mName').value.trim();
+      if (!name) { AdminUI.showToast('请填写分类名称', 'warning'); return; }
+      const payload = {
+        name: name,
+        parent_id: Number(document.getElementById('mParent').value) || 0,
+        icon: document.getElementById('mIcon').value.trim(),
+        sort: Number(document.getElementById('mSort').value) || 0,
+        is_show: document.getElementById('mShow').checked ? 1 : 0
+      };
+      try {
+        const r = await AdminUI.post(API + '/categories', payload);
+        AdminUI.showToast('新增成功', 'success');
+        AdminUI.closeModal('categoryModal');
+        await loadCategories();
+        if (r && r.id) {
+          CURRENT_ID = r.id;
+          selectCategory(r.id);
+        }
+      } catch (e) { }
+    }
+
+    /* ========== 编辑 / 删除 ========== */
+    async function saveDetail() {
+      if (!CURRENT_ID) { AdminUI.showToast('请先选择分类', 'warning'); return; }
+      const name = document.getElementById('dName').value.trim();
+      if (!name) { AdminUI.showToast('请填写分类名称', 'warning'); return; }
+      const payload = {
+        name: name,
+        parent_id: Number(document.getElementById('dParent').value) || 0,
+        icon: document.getElementById('dIcon').value.trim(),
+        sort: Number(document.getElementById('dSort').value) || 0,
+        is_show: document.getElementById('dShow').checked ? 1 : 0,
+        seo_title: document.getElementById('dSeoTitle').value.trim(),
+        seo_keywords: document.getElementById('dSeoKeywords').value.trim(),
+        seo_desc: document.getElementById('dSeoDesc').value.trim()
+      };
+      try {
+        await AdminUI.put(API + '/categories/' + CURRENT_ID, payload);
+        AdminUI.showToast('保存成功', 'success');
+        await loadCategories();
+        selectCategory(CURRENT_ID);
+      } catch (e) { }
+    }
+
+    async function delCategory(id) {
+      if (!window.confirm('确认删除该分类？')) return;
+      try {
+        await AdminUI.del(API + '/categories/' + id);
+        AdminUI.showToast('删除成功', 'success');
+        if (CURRENT_ID === id) CURRENT_ID = null;
+        await loadCategories();
+        if (CURRENT_ID) selectCategory(CURRENT_ID);
+        else clearDetail();
+      } catch (e) { }
+    }
+
+    /* ========== 初始化 ========== */
+    async function loadCategories() {
+      const data = await AdminUI.get(API + '/categories');
+      CATS = data || [];
+      FLAT = {};
+      buildFlat(CATS);
+      if (CURRENT_ID && !FLAT[CURRENT_ID]) CURRENT_ID = null;
+      renderTree();
+      if (!CURRENT_ID) {
+        document.getElementById('detailBox').innerHTML = '<div class="cat-detail-tip">点击左侧分类树中的节点查看并编辑分类详情</div>';
+      }
+    }
+
+    (async function () {
+      const ok = await AdminUI.initPage({ key: 'goods-category', breadcrumb: ['商品管理', '商品分类'], need: ['goods:list'] });
+      if (!ok) return;
+      if (!AdminUI.can('goods:add')) document.getElementById('btnAddTop').style.display = 'none';
+      bindTreeEvents();
+      AdminUI.enableImageUpload({
+        input: document.getElementById('mIcon'),
+        btn: document.getElementById('btnMIcon'),
+        onUpload: function () { renderPreview('mIcon', 'mIconPreview'); }
+      });
+      await loadCategories();
+      if (CATS.length) selectCategory(CATS[0].id);
+    })();
+  </script>
+</body>
+</html>

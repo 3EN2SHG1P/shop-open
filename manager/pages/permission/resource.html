@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>权限资源 - 商城后台管理系统</title>
+  <link rel="stylesheet" href="../../css/common.css?v=20260904e">
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main-wrapper">
+      <header class="header" id="header"></header>
+      <main class="content">
+        <div class="page-header">
+          <div><h1 class="page-title">权限资源</h1><p class="page-desc">维护菜单、按钮、接口、数据四类权限资源</p></div>
+          <div class="btn-group">
+            <select class="form-control" id="res-type-filter" style="width:120px;height:36px;font-size:13px;" onchange="renderResTable()">
+              <option value="">全部类型</option>
+              <option value="menu">菜单</option>
+              <option value="button">按钮</option>
+              <option value="api">接口</option>
+              <option value="data">数据</option>
+            </select>
+            <button class="btn btn-primary" id="btnAddRes" onclick="openResCreate(0)">➕ 新增资源</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body no-padding">
+            <div class="table-wrapper">
+              <table class="table">
+                <thead><tr><th>资源名称</th><th>类型</th><th>权限编码</th><th>路由/路径</th><th>请求方法</th><th>图标</th><th>排序</th><th>状态</th><th class="col-actions">操作</th></tr></thead>
+                <tbody id="resTbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <div class="modal-overlay" id="resourceModal">
+    <div class="modal">
+      <div class="modal-header"><h3 class="modal-title" id="resModalTitle">新增权限资源</h3><button class="modal-close" data-close-modal="resourceModal">✕</button></div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">资源类型 <span class="required">*</span></label><select class="form-control" id="res-type">
+            <option value="menu">菜单</option>
+            <option value="button">按钮</option>
+            <option value="api">接口</option>
+            <option value="data">数据</option>
+          </select></div>
+          <div class="form-group"><label class="form-label">上级资源</label><select class="form-control" id="res-parent"></select></div>
+          <div class="form-group"><label class="form-label">资源名称 <span class="required">*</span></label><input type="text" class="form-control" id="res-name" placeholder="如：商品列表"></div>
+          <div class="form-group"><label class="form-label">权限编码</label><input type="text" class="form-control" id="res-code" placeholder="如：goods:list（全局唯一）" style="font-family:monospace;"></div>
+          <div class="form-group"><label class="form-label">路由/路径</label><input type="text" class="form-control" id="res-path" placeholder="菜单路由或API路径"></div>
+          <div class="form-group"><label class="form-label">请求方法</label><select class="form-control" id="res-method"><option value="">-</option><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select></div>
+          <div class="form-group"><label class="form-label">图标</label><input type="text" class="form-control" id="res-icon" placeholder="emoji或图标类名"></div>
+          <div class="form-group"><label class="form-label">排序</label><input type="number" class="form-control" id="res-sort" value="0"></div>
+        </div>
+        <div class="form-group"><label class="form-label">状态</label><label class="switch"><input type="checkbox" id="res-status" checked><span class="switch-slider"></span></label></div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-close-modal="resourceModal">取消</button><button class="btn btn-primary" onclick="saveRes()">确认创建</button></div>
+    </div>
+  </div>
+  <script src="../../js/common.js?v=20260904e"></script>
+  <script>
+    let RES_TREE = [];
+    let RES_EDIT_ID = null;
+
+    function typeBadge(t) {
+      if (t === 'menu') return '<span class="badge-tag primary">菜单</span>';
+      if (t === 'button') return '<span class="badge-tag warning">按钮</span>';
+      if (t === 'api') return '<span class="badge-tag info">接口</span>';
+      return '<span class="badge-tag default">数据</span>';
+    }
+
+    function methodHtml(m) {
+      if (!m) return '-';
+      const cls = m === 'GET' ? 'success' : (m === 'POST' ? 'primary' : (m === 'PUT' ? 'warning' : 'danger'));
+      return `<span class="badge-tag ${cls}">${m}</span>`;
+    }
+
+    function nodeById(id) {
+      const list = AdminUI.flattenTree(RES_TREE);
+      for (let i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+      return null;
+    }
+
+    async function loadResTree() {
+      const data = await AdminUI.get(AdminUI.API_BASE + '/permission/tree');
+      if (!data) return;
+      RES_TREE = data;
+      const flat = AdminUI.flattenTree(RES_TREE);
+      document.getElementById('res-parent').innerHTML = '<option value="0">顶级资源</option>' + flat.map(n => `<option value="${n.id}">${'　'.repeat(n.depth)}${AdminUI.esc(n.name)}</option>`).join('');
+      renderResTable();
+    }
+
+    function renderResTable() {
+      const type = document.getElementById('res-type-filter').value;
+      let list = AdminUI.flattenTree(RES_TREE);
+      if (type) list = list.filter(n => n.permissionType === type);
+      const rows = list.map(n => {
+        let act = '';
+        const indent = 16 + (n.depth || 0) * 22;
+        if (AdminUI.can('permission:edit')) {
+          act += `<a class="action-link" onclick="openResEdit(${n.id})">编辑</a>`;
+          if (n.status === 0) act += `<a class="action-link" onclick="toggleResStatus(${n.id},1)">启用</a>`;
+        }
+        if (AdminUI.can('permission:add')) act += `<a class="action-link" onclick="openResCreate(${n.id})">+子资源</a>`;
+        if (AdminUI.can('permission:delete')) act += `<a class="action-link danger" onclick="removeRes(${n.id})">删除</a>`;
+        if (!act) act = '<span style="color:var(--text-muted);font-size:12px;">-</span>';
+        const isMenu = n.permissionType === 'menu';
+        return `<tr>
+          <td style="${isMenu ? 'font-weight:500;' : ''}padding-left:${indent}px;">${AdminUI.esc(n.name)}</td>
+          <td>${typeBadge(n.permissionType)}</td>
+          <td style="font-family:monospace;font-size:12px;">${AdminUI.esc(n.code || '-')}</td>
+          <td style="font-family:monospace;font-size:12px;">${AdminUI.esc(n.path || '-')}</td>
+          <td>${methodHtml(n.method)}</td>
+          <td>${AdminUI.esc(n.icon || '-')}</td>
+          <td>${n.sort || 0}</td>
+          <td>${n.status === 1 ? '<span class="badge-tag success">启用</span>' : '<span class="badge-tag danger">禁用</span>'}</td>
+          <td class="col-actions">${act}</td>
+        </tr>`;
+      }).join('');
+      document.getElementById('resTbody').innerHTML = rows || '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:40px 0;">暂无数据</td></tr>';
+    }
+
+    function resetResForm() {
+      document.getElementById('res-type').value = 'menu';
+      document.getElementById('res-parent').value = '0';
+      document.getElementById('res-name').value = '';
+      document.getElementById('res-code').value = '';
+      document.getElementById('res-path').value = '';
+      document.getElementById('res-method').value = '';
+      document.getElementById('res-icon').value = '';
+      document.getElementById('res-sort').value = '0';
+      document.getElementById('res-status').checked = true;
+    }
+
+    window.openResCreate = function (parentId) {
+      RES_EDIT_ID = null;
+      resetResForm();
+      document.getElementById('resModalTitle').textContent = '新增权限资源';
+      document.getElementById('res-parent').value = String(parentId || 0);
+      document.querySelector('#resourceModal .modal-footer .btn-primary').textContent = '确认创建';
+      AdminUI.openModal('resourceModal');
+    };
+
+    window.openResEdit = function (id) {
+      const n = nodeById(id);
+      if (!n) return;
+      RES_EDIT_ID = n.id;
+      document.getElementById('resModalTitle').textContent = '编辑权限资源 - ' + n.name;
+      document.getElementById('res-type').value = n.permissionType;
+      document.getElementById('res-parent').value = String(n.parent_id || 0);
+      document.getElementById('res-name').value = n.name || '';
+      document.getElementById('res-code').value = n.code || '';
+      document.getElementById('res-path').value = n.path || '';
+      document.getElementById('res-method').value = n.method || '';
+      document.getElementById('res-icon').value = n.icon || '';
+      document.getElementById('res-sort').value = (n.sort === undefined ? 0 : n.sort);
+      document.getElementById('res-status').checked = n.status === 1;
+      document.querySelector('#resourceModal .modal-footer .btn-primary').textContent = '保存修改';
+      AdminUI.openModal('resourceModal');
+    };
+
+    window.saveRes = async function () {
+      const name = document.getElementById('res-name').value.trim();
+      if (!name) { AdminUI.showToast('请输入资源名称', 'error'); return; }
+      const payload = {
+        parent_id: parseInt(document.getElementById('res-parent').value, 10) || 0,
+        permission_type: document.getElementById('res-type').value,
+        name: name,
+        code: document.getElementById('res-code').value.trim(),
+        path: document.getElementById('res-path').value.trim(),
+        method: document.getElementById('res-method').value,
+        icon: document.getElementById('res-icon').value.trim(),
+        sort: parseInt(document.getElementById('res-sort').value, 10) || 0,
+        status: document.getElementById('res-status').checked ? 1 : 0
+      };
+      try {
+        if (RES_EDIT_ID) {
+          await AdminUI.put(AdminUI.API_BASE + '/permission/resources/' + RES_EDIT_ID, payload);
+          AdminUI.showToast('保存成功', 'success');
+        } else {
+          await AdminUI.post(AdminUI.API_BASE + '/permission/resources', payload);
+          AdminUI.showToast('资源创建成功', 'success');
+        }
+        AdminUI.closeModal('resourceModal');
+        loadResTree();
+      } catch (e) { }
+    };
+
+    window.toggleResStatus = async function (id, status) {
+      const n = nodeById(id);
+      if (!n) return;
+      const payload = {
+        parent_id: n.parent_id || 0,
+        permission_type: n.permissionType,
+        name: n.name,
+        code: n.code || '',
+        path: n.path || '',
+        method: n.method || '',
+        icon: n.icon || '',
+        sort: n.sort || 0,
+        status: status
+      };
+      try {
+        await AdminUI.put(AdminUI.API_BASE + '/permission/resources/' + id, payload);
+        AdminUI.showToast(status === 1 ? '已启用' : '已禁用', 'success');
+        loadResTree();
+      } catch (e) { }
+    };
+
+    window.removeRes = async function (id) {
+      const n = nodeById(id);
+      if (!n) return;
+      if (!window.confirm('确认删除权限资源「' + n.name + '」？')) return;
+      try {
+        await AdminUI.del(AdminUI.API_BASE + '/permission/resources/' + id);
+        AdminUI.showToast('删除成功', 'success');
+        loadResTree();
+      } catch (e) { }
+    };
+
+    (async function () {
+      const ok = await AdminUI.initPage({ key: 'resource', breadcrumb: ['权限管理', '权限资源'], need: ['permission:list'] });
+      if (!ok) return;
+      if (!AdminUI.can('permission:add')) document.getElementById('btnAddRes').style.display = 'none';
+      await loadResTree();
+    })();
+  </script>
+</body>
+</html>
